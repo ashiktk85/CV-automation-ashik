@@ -1,7 +1,20 @@
-import { FiRefreshCw, FiFileText, FiDownload, FiCalendar, FiUser, FiMail, FiBriefcase } from 'react-icons/fi'
+import { useState, useEffect } from 'react'
+import { FiRefreshCw, FiFileText, FiDownload, FiCalendar, FiUser, FiMail, FiBriefcase, FiCheckCircle } from 'react-icons/fi'
 import axiosInstance from '../api/axiosInstance'
 
-function Dashboard({ cvData, loading, onRefresh }) {
+function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
+  const [newCVNotification, setNewCVNotification] = useState(null)
+
+  useEffect(() => {
+    // Show notification only when a new CV is added via socket
+    if (newCVAdded) {
+      setNewCVNotification('New CV received!')
+      const timer = setTimeout(() => {
+        setNewCVNotification(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [newCVAdded])
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
     const date = new Date(dateString)
@@ -27,14 +40,26 @@ function Dashboard({ cvData, loading, onRefresh }) {
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
           <p className="text-gray-600 mt-1">Manage and view all CV submissions</p>
+          <p className="text-sm text-green-600 mt-1 flex items-center space-x-1">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            <span>Real-time updates enabled</span>
+          </p>
         </div>
-        <button
-          onClick={onRefresh}
-          className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md"
-        >
-          <FiRefreshCw size={18} />
-          <span>Refresh</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          {newCVNotification && (
+            <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 animate-fade-in">
+              <FiCheckCircle size={18} />
+              <span className="text-sm font-medium">{newCVNotification}</span>
+            </div>
+          )}
+          <button
+            onClick={onRefresh}
+            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md"
+          >
+            <FiRefreshCw size={18} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
