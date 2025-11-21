@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FiRefreshCw, FiFileText, FiEye, FiCalendar, FiUser, FiMail, FiBriefcase, FiCheckCircle } from 'react-icons/fi'
+import { FiRefreshCw, FiFileText, FiEye, FiCalendar, FiUser, FiMail, FiBriefcase, FiCheckCircle, FiDownload } from 'react-icons/fi'
 import PDFPreviewModal from './PDFPreviewModal'
 
 function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
