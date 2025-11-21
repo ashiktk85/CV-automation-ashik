@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import UploadCV from './components/UploadCV'
 import { FiMenu, FiX } from 'react-icons/fi'
+import axiosInstance from './api/axiosInstance'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -12,9 +13,9 @@ function App() {
 
   const fetchCVData = () => {
     setLoading(true)
-    fetch('/api/cv/list')
-      .then(res => res.json())
-      .then(data => {
+    axiosInstance.get('/api/cv/list')
+      .then(response => {
+        const data = response.data
         if (data.success) {
           setCvData(data.data || [])
         }

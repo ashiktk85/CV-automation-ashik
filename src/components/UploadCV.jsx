@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FiUpload, FiFileText, FiCheck, FiX, FiAlertCircle } from 'react-icons/fi'
+import axiosInstance from '../api/axiosInstance'
 
 function UploadCV({ onUploadSuccess }) {
   const [formData, setFormData] = useState({
@@ -60,14 +61,15 @@ function UploadCV({ onUploadSuccess }) {
       uploadFormData.append('jobTitle', formData.jobTitle)
       uploadFormData.append('timestamp', formData.timestamp || new Date().toISOString())
 
-      const response = await fetch('/api/cv/upload', {
-        method: 'POST',
-        body: uploadFormData
+      const response = await axiosInstance.post('/api/cv/upload', uploadFormData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       })
 
-      const data = await response.json()
+      const data = response.data
 
-      if (response.ok && data.success) {
+      if (data.success) {
         setMessage({ type: 'success', text: 'CV uploaded successfully!' })
         setFormData({
           fullName: '',
@@ -91,7 +93,8 @@ function UploadCV({ onUploadSuccess }) {
       }
     } catch (error) {
       console.error('Upload error:', error)
-      setMessage({ type: 'error', text: 'Network error. Please check your connection and try again.' })
+      const errorMessage = error.response?.data?.error || 'Network error. Please check your connection and try again.'
+      setMessage({ type: 'error', text: errorMessage })
     } finally {
       setUploading(false)
     }

@@ -1,4 +1,5 @@
 import { FiRefreshCw, FiFileText, FiDownload, FiCalendar, FiUser, FiMail, FiBriefcase } from 'react-icons/fi'
+import axiosInstance from '../api/axiosInstance'
 
 function Dashboard({ cvData, loading, onRefresh }) {
   const formatDate = (dateString) => {
@@ -14,7 +15,9 @@ function Dashboard({ cvData, loading, onRefresh }) {
   }
 
   const handleDownload = (filePath, fileName) => {
-    window.open(`http://localhost:3001${filePath}`, '_blank')
+    // Use the axios instance base URL for downloads
+    const downloadUrl = `${axiosInstance.defaults.baseURL}${filePath}`
+    window.open(downloadUrl, '_blank')
   }
 
   return (
