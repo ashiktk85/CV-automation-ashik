@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
-import UploadCV from './components/UploadCV'
 import { FiMenu, FiX } from 'react-icons/fi'
 import axiosInstance from './api/axiosInstance'
 import socket from './utils/socket'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [activeView, setActiveView] = useState('dashboard')
   const [cvData, setCvData] = useState([])
   const [loading, setLoading] = useState(true)
   const [newCVAdded, setNewCVAdded] = useState(false)
@@ -70,11 +68,6 @@ function App() {
     }
   }, [])
 
-  const handleCVUploaded = () => {
-    // No need to manually refresh anymore - socket will handle it
-    // But we can still keep this for immediate feedback if needed
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile menu button */}
@@ -90,8 +83,8 @@ function App() {
         <Sidebar
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
-          activeView={activeView}
-          setActiveView={setActiveView}
+          activeView="dashboard"
+          setActiveView={() => {}}
         />
 
         {/* Main content */}
@@ -101,12 +94,7 @@ function App() {
           }`}
         >
           <div className="p-4 lg:p-8">
-            {activeView === 'dashboard' && (
-              <Dashboard cvData={cvData} loading={loading} onRefresh={fetchCVData} newCVAdded={newCVAdded} />
-            )}
-            {activeView === 'upload' && (
-              <UploadCV onUploadSuccess={handleCVUploaded} />
-            )}
+            <Dashboard cvData={cvData} loading={loading} onRefresh={fetchCVData} newCVAdded={newCVAdded} />
           </div>
         </main>
       </div>

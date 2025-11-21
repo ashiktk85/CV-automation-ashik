@@ -1,9 +1,8 @@
-import { FiLayout, FiUpload, FiHome } from 'react-icons/fi'
+import { FiLayout, FiHome } from 'react-icons/fi'
 
 function Sidebar({ isOpen, setIsOpen, activeView, setActiveView }) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: FiHome },
-    { id: 'upload', label: 'Upload CV', icon: FiUpload },
   ]
 
   return (

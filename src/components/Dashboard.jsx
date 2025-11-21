@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { FiRefreshCw, FiFileText, FiDownload, FiCalendar, FiUser, FiMail, FiBriefcase, FiCheckCircle } from 'react-icons/fi'
-import axiosInstance from '../api/axiosInstance'
+import { FiRefreshCw, FiFileText, FiEye, FiCalendar, FiUser, FiMail, FiBriefcase, FiCheckCircle } from 'react-icons/fi'
+import PDFPreviewModal from './PDFPreviewModal'
 
 function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
   const [newCVNotification, setNewCVNotification] = useState(null)
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, filePath: null, fileName: null })
 
   useEffect(() => {
     // Show notification only when a new CV is added via socket
@@ -15,6 +16,7 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
       return () => clearTimeout(timer)
     }
   }, [newCVAdded])
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
     const date = new Date(dateString)
@@ -27,10 +29,12 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
     })
   }
 
-  const handleDownload = (filePath, fileName) => {
-    // Use the axios instance base URL for downloads
-    const downloadUrl = `${axiosInstance.defaults.baseURL}${filePath}`
-    window.open(downloadUrl, '_blank')
+  const handlePreview = (filePath, fileName) => {
+    setPreviewModal({ isOpen: true, filePath, fileName })
+  }
+
+  const handleClosePreview = () => {
+    setPreviewModal({ isOpen: false, filePath: null, fileName: null })
   }
 
   return (
@@ -39,7 +43,7 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Manage and view all CV submissions</p>
+          <p className="text-gray-600 mt-1">View and manage all CV submissions</p>
           <p className="text-sm text-green-600 mt-1 flex items-center space-x-1">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
             <span>Real-time updates enabled</span>
@@ -121,7 +125,7 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
           <div className="p-12 text-center">
             <FiFileText className="mx-auto text-gray-400" size={48} />
             <p className="mt-4 text-gray-600">No CV submissions yet</p>
-            <p className="text-sm text-gray-500">Upload a CV to get started</p>
+            <p className="text-sm text-gray-500">CVs will appear here when uploaded</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -185,11 +189,12 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
-                        onClick={() => handleDownload(cv.file.filePath, cv.file.fileName)}
+                        onClick={() => handlePreview(cv.file.filePath, cv.file.fileName)}
                         className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-colors text-sm"
+                        title="Preview PDF"
                       >
-                        <FiDownload size={14} />
-                        <span>Download</span>
+                        <FiEye size={14} />
+                        <span>Preview</span>
                       </button>
                     </td>
                   </tr>
@@ -199,6 +204,14 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
           </div>
         )}
       </div>
+
+      {/* PDF Preview Modal */}
+      <PDFPreviewModal
+        isOpen={previewModal.isOpen}
+        onClose={handleClosePreview}
+        filePath={previewModal.filePath}
+        fileName={previewModal.fileName}
+      />
     </div>
   )
 }
