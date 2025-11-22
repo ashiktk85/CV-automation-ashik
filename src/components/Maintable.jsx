@@ -123,14 +123,58 @@ Team Avoria`
                 <table className="w-full border-collapse">
                     <thead>
                         <tr className="border-b border-border bg-gray-100">
-                            <th className="px-6 py-4 text-left text-lg font-semibold"> <RiAccountBoxFill className="h-5 w-5" /> Name</th>
-                            <th className="px-6 py-4 text-left text-lg font-semibold"> <Mail className="h-5 w-5" /> Email</th>
-                            <th className="px-6 py-4 text-left text-lg font-semibold"> <Phone className="h-5 w-5" /> Phone</th>
-                            <th className="px-6 py-4 text-left text-lg font-semibold"> <FaCalendar className="h-5 w-5" /> Applied</th>
-                            <th className="px-6 py-4 text-left text-lg font-semibold"><GrValidate className="h-5 w-5" /> Score</th>
-                            <th className="px-6 py-4 text-left text-lg font-semibold"><ImProfile className="h-5 w-5" /> CV</th>
-                            <th className="px-6 py-4 text-left text-lg font-semibold"><MdCreditScore className="h-5 w-5" /> Actions</th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <RiAccountBoxFill className="h-5 w-5" />
+                                    Name
+                                </div>
+                            </th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <Mail className="h-5 w-5" />
+                                    Email
+                                </div>
+                            </th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <Phone className="h-5 w-5" />
+                                    Phone
+                                </div>
+                            </th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <FaCalendar className="h-5 w-5" />
+                                    Applied
+                                </div>
+                            </th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <GrValidate className="h-5 w-5" />
+                                    Score
+                                </div>
+                            </th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <ImProfile className="h-5 w-5" />
+                                    CV
+                                </div>
+                            </th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <MdCreditScore className="h-5 w-5" />
+                                    Actions
+                                </div>
+                            </th>
+
                         </tr>
+
                     </thead>
 
                     <tbody>
@@ -141,7 +185,7 @@ Team Avoria`
                                     }`}
                             >
                                 {/* NAME */}
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-2">
                                     <div className="flex items-center gap-3">
                                         <div className="h-10 w-10 flex items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
                                             {applicant.name
@@ -156,7 +200,7 @@ Team Avoria`
                                 </td>
 
                                 {/* EMAIL */}
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-2">
                                     <button
                                         onClick={() => handleEmailClick(applicant.email)}
                                         className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
@@ -167,7 +211,7 @@ Team Avoria`
                                 </td>
 
                                 {/* PHONE */}
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-2">
                                     <button
                                         onClick={() => handlePhoneClick(applicant.phone)}
                                         className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
@@ -178,7 +222,7 @@ Team Avoria`
                                 </td>
 
                                 {/* DATE */}
-                                <td className="px-6 py-4 text-[16px] text-muted-foreground">
+                                <td className="px-6 py-2 text-[16px] text-muted-foreground">
                                     {new Date(applicant.appliedDate).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
@@ -187,7 +231,7 @@ Team Avoria`
                                 </td>
 
                                 {/* SCORE */}
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-2">
                                     <span
                                         className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${getScoreClasses(
                                             applicant.score
@@ -209,7 +253,7 @@ Team Avoria`
                                 </td>
 
                                 {/* CV */}
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-2">
                                     <button
                                         onClick={() => handleCvClick(applicant.cvUrl, applicant.name)}
                                         className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
@@ -220,7 +264,7 @@ Team Avoria`
                                 </td>
 
                                 {/* ACTIONS */}
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-2">
                                     <div className="flex items-center gap-2">
                                         <button className="h-8 w-8 rounded-md hover:bg-primary/10">
                                             <FaDownload className="h-5 w-5" />

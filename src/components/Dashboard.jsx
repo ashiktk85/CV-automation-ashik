@@ -76,14 +76,14 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
             </div>
           )}
             <button 
-          className="flex items-center space-x-2 px-8 py-2 bg-white border border-black/40 text-black rounded-lg hover:bg-gray-100 transition-colors shadow-md"
+          className="flex items-center space-x-2 px-6 py-1 bg-white border border-black/40 text-black rounded-lg hover:bg-gray-100 transition-colors shadow-md"
           >
            <BiSort size={18} />
             <span className='text-black font-bold'>Filter</span>
           </button>
 
           <button 
-          className="flex items-center space-x-2 px-8 py-2 bg-white border border-black/40 text-black rounded-lg hover:bg-gray-100 transition-colors shadow-md"
+          className="flex items-center space-x-2 px-6 py-1 bg-white border border-black/40 text-black rounded-lg hover:bg-gray-100 transition-colors shadow-md"
           >
            <BiSort size={18} />
             <span className='text-black font-bold'>Sort</span>
@@ -91,7 +91,7 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
 
           <button
             onClick={onRefresh}
-            className="flex items-center space-x-2 px-8 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md"
+            className="flex items-center space-x-2 px-6 py-1 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md"
           >
             <FiRefreshCw size={18} />
             <span className='font-bold'>Refresh</span>
