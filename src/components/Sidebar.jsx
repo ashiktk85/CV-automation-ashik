@@ -1,8 +1,9 @@
-import { FiLayout, FiHome } from 'react-icons/fi'
+import { FiLayout, FiHome, FiFileText } from 'react-icons/fi'
 
 function Sidebar({ isOpen, setIsOpen, activeView, setActiveView }) {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: FiHome },
+    { id: 'cv-submissions', label: 'CV Submissions', icon: FiFileText },
   ]
 
   return (
@@ -37,7 +38,7 @@ function Sidebar({ isOpen, setIsOpen, activeView, setActiveView }) {
           </div>
 
           {/* Menu Items */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 ">
             {menuItems.map((item) => {
               const Icon = item.icon
               const isActive = activeView === item.id
@@ -53,8 +54,8 @@ function Sidebar({ isOpen, setIsOpen, activeView, setActiveView }) {
                   }}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-black text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-200'
                   }`}
                   title={!isOpen ? item.label : ''}
                 >
