@@ -15,13 +15,19 @@ export default function Maintable({ cvData = [], loading = false, onPreview }) {
 
     // Transform CV data to match table format
     const applicants = cvData.map((cv) => {
-        // Prefer Cloudinary URL, fall back to local file path
+        // Prefer Supabase URL, fall back to local file path
         const baseURL = axiosInstance.defaults.baseURL || 'http://localhost:3001';
         const fileUrl = cv.file?.supabaseUrl 
             ? cv.file.supabaseUrl
             : cv.file?.localFilePath 
                 ? `${baseURL}${cv.file.localFilePath}`
                 : null;
+        
+        // Combine matched experience and technical skills
+        const allMatchedSkills = [
+            ...(cv.matchedExperience || []),
+            ...(cv.matchedTechnicalSkills || [])
+        ];
         
         return {
             id: cv._id || cv.id,
@@ -32,8 +38,17 @@ export default function Maintable({ cvData = [], loading = false, onPreview }) {
             cvUrl: fileUrl,
             fileName: cv.file?.localFileName || cv.file?.fileName || 'CV.pdf',
             jobTitle: cv.jobTitle || 'N/A',
-            score: null, // Score not available from CV data
-            skillsMatched: [], // Skills not available from CV data
+            // Scoring data
+            score: cv.score ?? null,
+            rank: cv.rank || null,
+            decision: cv.decision || null,
+            hasLiquid: cv.hasLiquid || false,
+            shopifyExperienceMatches: cv.shopifyExperienceMatches ?? null,
+            technicalMatches: cv.technicalMatches ?? null,
+            matchedExperience: cv.matchedExperience || [],
+            matchedTechnicalSkills: cv.matchedTechnicalSkills || [],
+            allMatchedSkills: allMatchedSkills,
+            reason: cv.reason || null,
         };
     })
 
@@ -96,6 +111,30 @@ Team Avoria`
         }
     }
 
+    const getScoreClasses = (score) => {
+        if (score === null || score === undefined) return "bg-gray-100 text-gray-500"
+        if (score >= 85) return "bg-emerald-100 text-emerald-800"
+        if (score >= 70) return "bg-blue-100 text-blue-800"
+        if (score >= 55) return "bg-amber-100 text-amber-800"
+        if (score >= 50) return "bg-orange-100 text-orange-800"
+        return "bg-red-100 text-red-800"
+    }
+
+    const getRankClasses = (rank) => {
+        if (!rank) return "bg-gray-100 text-gray-500"
+        if (rank === 'S') return "bg-purple-100 text-purple-800"
+        if (rank === 'A') return "bg-emerald-100 text-emerald-800"
+        if (rank === 'B') return "bg-blue-100 text-blue-800"
+        if (rank === 'C') return "bg-amber-100 text-amber-800"
+        return "bg-red-100 text-red-800"
+    }
+
+    const getDecisionClasses = (decision) => {
+        if (decision === 'YES') return "bg-green-100 text-green-800"
+        if (decision === 'NO') return "bg-red-100 text-red-800"
+        return "bg-gray-100 text-gray-500"
+    }
+
 
     const selectedApplicant =
         openSkillsId !== null ? applicants.find((a) => a.id === openSkillsId) : null
@@ -156,6 +195,13 @@ Team Avoria`
                                 <div className="flex items-center gap-2">
                                     <GrValidate className="h-5 w-5" />
                                     Job Title
+                                </div>
+                            </th>
+
+                            <th className="px-6 py-4 text-left text-md font-semibold">
+                                <div className="flex items-center gap-2">
+                                    <MdCreditScore className="h-5 w-5" />
+                                    Score
                                 </div>
                             </th>
 
@@ -237,6 +283,52 @@ Team Avoria`
                                     </span>
                                 </td>
 
+                                {/* SCORE */}
+                                <td className="px-6 py-2">
+                                    {applicant.score !== null && applicant.score !== undefined ? (
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${getScoreClasses(
+                                                        applicant.score
+                                                    )}`}
+                                                >
+                                                    {applicant.score}%
+                                                </span>
+                                                {applicant.rank && (
+                                                    <span
+                                                        className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${getRankClasses(
+                                                            applicant.rank
+                                                        )}`}
+                                                    >
+                                                        {applicant.rank}
+                                                    </span>
+                                                )}
+                                                {applicant.decision && (
+                                                    <span
+                                                        className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${getDecisionClasses(
+                                                            applicant.decision
+                                                        )}`}
+                                                    >
+                                                        {applicant.decision}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {applicant.allMatchedSkills?.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOpenSkillsId(applicant.id)}
+                                                    className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-muted-foreground hover:bg-muted/80"
+                                                >
+                                                    {applicant.allMatchedSkills.length} skills matched
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span className="text-[16px] text-gray-400">Not scored</span>
+                                    )}
+                                </td>
+
                                 {/* CV */}
                                 <td className="px-6 py-2">
                                     {applicant.cvUrl ? (
@@ -292,33 +384,126 @@ Team Avoria`
                     />
 
                     {/* CENTER MODAL */}
-                    <div className="fixed inset-0 z-50 flex items-center justify-center">
-                        <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
                             <div className="flex items-start justify-between mb-4">
-                                <div className="space-y-2">
-                                    <h2 className="text-xl font-semibold text-gray-800 mb-8">Applicant Details</h2>
-                                    <div className="flex gap-2">
-                                        <p className="text-lg font-medium text-muted-foreground">
+                                <div className="space-y-3 flex-1">
+                                    <h2 className="text-2xl font-semibold text-gray-800">Applicant Details</h2>
+                                    
+                                    <div className="space-y-2">
+                                        <p className="text-lg font-medium text-gray-800">
                                             {selectedApplicant.name}
                                         </p>
+                                        <p className="text-sm text-gray-600">
+                                            <strong>Email:</strong> {selectedApplicant.email}
+                                        </p>
+                                        <p className="text-sm text-gray-600">
+                                            <strong>Job Title:</strong> {selectedApplicant.jobTitle}
+                                        </p>
                                     </div>
-                                    <p className="text-lg font-medium text-muted-foreground">
-                                        Job Title: {selectedApplicant.jobTitle}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Email: {selectedApplicant.email}
-                                    </p>
+
+                                    {/* Scoring Section */}
+                                    {selectedApplicant.score !== null && selectedApplicant.score !== undefined && (
+                                        <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
+                                            <h3 className="text-lg font-semibold text-gray-800">Scoring Results</h3>
+                                            
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <p className="text-sm text-gray-600 mb-1">Score</p>
+                                                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getScoreClasses(selectedApplicant.score)}`}>
+                                                        {selectedApplicant.score}%
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm text-gray-600 mb-1">Rank</p>
+                                                    {selectedApplicant.rank ? (
+                                                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getRankClasses(selectedApplicant.rank)}`}>
+                                                            {selectedApplicant.rank}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-400">N/A</span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm text-gray-600 mb-1">Decision</p>
+                                                    {selectedApplicant.decision ? (
+                                                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getDecisionClasses(selectedApplicant.decision)}`}>
+                                                            {selectedApplicant.decision}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-sm text-gray-400">N/A</span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm text-gray-600 mb-1">Has Liquid</p>
+                                                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${selectedApplicant.hasLiquid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        {selectedApplicant.hasLiquid ? 'Yes' : 'No'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {selectedApplicant.reason && (
+                                                <div className="mt-3">
+                                                    <p className="text-sm text-gray-600 mb-1">Reason</p>
+                                                    <p className="text-sm text-gray-800 bg-white p-2 rounded border">
+                                                        {selectedApplicant.reason}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Matched Skills Section */}
+                                    {(selectedApplicant.matchedExperience?.length > 0 || selectedApplicant.matchedTechnicalSkills?.length > 0) && (
+                                        <div className="mt-4 space-y-3">
+                                            {selectedApplicant.matchedExperience?.length > 0 && (
+                                                <div>
+                                                    <h3 className="text-md font-semibold text-gray-800 mb-2">
+                                                        Shopify Experience Skills ({selectedApplicant.shopifyExperienceMatches || selectedApplicant.matchedExperience.length})
+                                                    </h3>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selectedApplicant.matchedExperience.map((skill, i) => (
+                                                            <span
+                                                                key={i}
+                                                                className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-[13px] font-medium text-blue-800"
+                                                            >
+                                                                {skill.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {selectedApplicant.matchedTechnicalSkills?.length > 0 && (
+                                                <div>
+                                                    <h3 className="text-md font-semibold text-gray-800 mb-2">
+                                                        Technical Skills ({selectedApplicant.technicalMatches || selectedApplicant.matchedTechnicalSkills.length})
+                                                    </h3>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selectedApplicant.matchedTechnicalSkills.map((skill, i) => (
+                                                            <span
+                                                                key={i}
+                                                                className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-[13px] font-medium text-green-800"
+                                                            >
+                                                                {skill.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <button
                                     onClick={() => setOpenSkillsId(null)}
-                                    className="text-lg text-muted-foreground hover:text-foreground"
+                                    className="text-lg text-muted-foreground hover:text-foreground ml-4"
                                 >
                                     ✕
                                 </button>
                             </div>
 
-                            <div className="flex justify-end">
+                            <div className="flex justify-end mt-6">
                                 <button
                                     onClick={() => setOpenSkillsId(null)}
                                     className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted bg-black text-white"
