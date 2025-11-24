@@ -9,12 +9,12 @@ import PDFPreviewModal from './PDFPreviewModal'
 import Pagination from './Pagination'
 import axiosInstance from '../api/axiosInstance'
 
-function Dashboard({ 
+function ShopifyApplications({ 
   cvData, 
   loading, 
   onRefresh, 
-  newCVAdded, 
-  onToggleStar, 
+  newCVAdded,
+  onToggleStar,
   onDelete,
   onSearch,
   searchQuery,
@@ -33,12 +33,11 @@ function Dashboard({
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
 
-  // Data is already filtered by backend (score >= 50)
-  const acceptedCVs = cvData
+  const shopifyApplicants = cvData
 
   useEffect(() => {
     if (newCVAdded) {
-      setNewCVNotification('New CV received!')
+      setNewCVNotification('New Shopify application received!')
       const timer = setTimeout(() => {
         setNewCVNotification(null)
       }, 3000)
@@ -53,7 +52,7 @@ function Dashboard({
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true)
     try {
-      const response = await axiosInstance.get('/api/cv/analytics/accepted')
+      const response = await axiosInstance.get('/api/cv/analytics/shopify')
       if (response.data.success) {
         setAnalytics(response.data.data)
       }
@@ -72,16 +71,17 @@ function Dashboard({
     setPreviewModal({ isOpen: false, googleDriveLink: null, fileName: null })
   }
 
-  const handleSort = () => {
-    // Toggle between score and date sorting
-    const newField = sortBy === 'score' ? 'createdAt' : 'score'
-    const newOrder = sortBy === newField && sortOrder === 'desc' ? 'asc' : 'desc'
-    onSortChange(newField, newOrder)
-  }
 
   const handleFilterScore = (score) => {
     onFilterChange(score === minScore ? null : score)
   }
+
+  // Calculate stats for Shopify applicants
+  const acceptedShopify = shopifyApplicants.filter(cv => cv.score >= 50).length
+  const rejectedShopify = shopifyApplicants.filter(cv => cv.score < 50 || !cv.score).length
+  const avgScore = shopifyApplicants.length > 0
+    ? Math.round(shopifyApplicants.reduce((sum, cv) => sum + (cv.score || 0), 0) / shopifyApplicants.length)
+    : 0
 
   return (
     <motion.div
@@ -98,8 +98,8 @@ function Dashboard({
         className="flex sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-600 mt-1">View and manage accepted CV submissions (score ≥ 50)</p>
+          <h1 className="text-3xl font-bold text-gray-800">Shopify Applications</h1>
+          <p className="text-gray-600 mt-1">View and manage Shopify developer applications</p>
         </div>
         <div>
           <p className="text-md text-green-600 mt-1 flex items-center space-x-1">
@@ -113,9 +113,9 @@ function Dashboard({
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
         <Statcard 
           index={0}
-          heading="Total Accepted" 
+          heading="Total Applications" 
           value={analyticsLoading ? "..." : analytics.total.toString()} 
-          description="Total accepted CVs (score ≥ 50)" 
+          description="Total Shopify applications received" 
           smallStats={`${analytics.today} today · ${analytics.week} this week`} 
           badgeBg="bg-blue-100" 
           badgeText="text-blue-700" 
@@ -126,7 +126,7 @@ function Dashboard({
           index={1}
           heading="Today" 
           value={analyticsLoading ? "..." : analytics.today.toString()} 
-          description="Accepted CVs received today" 
+          description="Applications received today" 
           smallStats="Last 24 hours" 
           badgeBg="bg-green-100" 
           badgeText="text-green-700" 
@@ -137,7 +137,7 @@ function Dashboard({
           index={2}
           heading="This Week" 
           value={analyticsLoading ? "..." : analytics.week.toString()} 
-          description="Accepted CVs this week" 
+          description="Applications this week" 
           smallStats="Last 7 days" 
           badgeBg="bg-orange-100" 
           badgeText="text-orange-700" 
@@ -148,11 +148,11 @@ function Dashboard({
           index={3}
           heading="This Month" 
           value={analyticsLoading ? "..." : analytics.month.toString()} 
-          description="Accepted CVs this month" 
+          description="Applications this month" 
           smallStats="Last 30 days" 
-          badgeBg="bg-violet-100" 
-          badgeText="text-violet-700" 
-          accentColor="bg-violet-100" 
+          badgeBg="bg-purple-100" 
+          badgeText="text-purple-700" 
+          accentColor="bg-purple-100" 
           bgColor="bg-white" 
         />
       </div>
@@ -277,22 +277,22 @@ function Dashboard({
             <span className='font-bold'>Refresh</span>
           </button>
         </div>
-
-        {/* Click outside to close dropdowns */}
-        {(showFilter || showSort) && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => {
-              setShowFilter(false)
-              setShowSort(false)
-            }}
-          />
-        )}
       </motion.div>
+
+      {/* Click outside to close dropdowns */}
+      {(showFilter || showSort) && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setShowFilter(false)
+            setShowSort(false)
+          }}
+        />
+      )}
      
       {/* Table */}
       <Maintable 
-        cvData={acceptedCVs}
+        cvData={shopifyApplicants} 
         loading={loading}
         onPreview={handlePreview}
         onToggleStar={onToggleStar}
@@ -319,4 +319,4 @@ function Dashboard({
   )
 }
 
-export default Dashboard
+export default ShopifyApplications

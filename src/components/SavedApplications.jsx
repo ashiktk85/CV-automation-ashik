@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FiRefreshCw, FiCheckCircle } from 'react-icons/fi'
+import { FiRefreshCw, FiCheckCircle, FiStar } from 'react-icons/fi'
 import { BiSort } from "react-icons/bi";
 import { motion } from 'framer-motion'
 import Statcard from './Statcard'
@@ -9,12 +9,12 @@ import PDFPreviewModal from './PDFPreviewModal'
 import Pagination from './Pagination'
 import axiosInstance from '../api/axiosInstance'
 
-function Dashboard({ 
+function SavedApplications({ 
   cvData, 
   loading, 
   onRefresh, 
-  newCVAdded, 
-  onToggleStar, 
+  newCVAdded,
+  onToggleStar,
   onDelete,
   onSearch,
   searchQuery,
@@ -33,12 +33,11 @@ function Dashboard({
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
 
-  // Data is already filtered by backend (score >= 50)
-  const acceptedCVs = cvData
+  const savedApplicants = cvData
 
   useEffect(() => {
     if (newCVAdded) {
-      setNewCVNotification('New CV received!')
+      setNewCVNotification('Saved CVs updated!')
       const timer = setTimeout(() => {
         setNewCVNotification(null)
       }, 3000)
@@ -53,7 +52,7 @@ function Dashboard({
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true)
     try {
-      const response = await axiosInstance.get('/api/cv/analytics/accepted')
+      const response = await axiosInstance.get('/api/cv/analytics/starred')
       if (response.data.success) {
         setAnalytics(response.data.data)
       }
@@ -72,12 +71,6 @@ function Dashboard({
     setPreviewModal({ isOpen: false, googleDriveLink: null, fileName: null })
   }
 
-  const handleSort = () => {
-    // Toggle between score and date sorting
-    const newField = sortBy === 'score' ? 'createdAt' : 'score'
-    const newOrder = sortBy === newField && sortOrder === 'desc' ? 'asc' : 'desc'
-    onSortChange(newField, newOrder)
-  }
 
   const handleFilterScore = (score) => {
     onFilterChange(score === minScore ? null : score)
@@ -90,7 +83,6 @@ function Dashboard({
       transition={{ duration: 0.3 }}
       className="space-y-6 px-8 py-4"
     >
-      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -98,66 +90,66 @@ function Dashboard({
         className="flex sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-600 mt-1">View and manage accepted CV submissions (score ≥ 50)</p>
+          <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <FiStar className="text-yellow-500" /> Saved Applications
+          </h1>
+          <p className="text-gray-600 mt-1">Review starred candidates</p>
         </div>
         <div>
-          <p className="text-md text-green-600 mt-1 flex items-center space-x-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span>Real-time updates enabled</span>
+          <p className="text-md text-indigo-600 mt-1 flex items-center space-x-1">
+            <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
+            <span>Starred shortlist</span>
           </p>
         </div>
       </motion.div>
 
-      {/* Stats Cards */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
         <Statcard 
           index={0}
-          heading="Total Accepted" 
+          heading="Total Saved" 
           value={analyticsLoading ? "..." : analytics.total.toString()} 
-          description="Total accepted CVs (score ≥ 50)" 
+          description="Total saved applications" 
           smallStats={`${analytics.today} today · ${analytics.week} this week`} 
-          badgeBg="bg-blue-100" 
-          badgeText="text-blue-700" 
-          accentColor="bg-blue-100" 
+          badgeBg="bg-yellow-100" 
+          badgeText="text-yellow-700" 
+          accentColor="bg-yellow-100" 
           bgColor="bg-white" 
         />
         <Statcard 
           index={1}
           heading="Today" 
           value={analyticsLoading ? "..." : analytics.today.toString()} 
-          description="Accepted CVs received today" 
+          description="Saved today" 
           smallStats="Last 24 hours" 
-          badgeBg="bg-green-100" 
-          badgeText="text-green-700" 
-          accentColor="bg-green-100" 
+          badgeBg="bg-purple-100" 
+          badgeText="text-purple-700" 
+          accentColor="bg-purple-100" 
           bgColor="bg-white" 
         />
         <Statcard 
           index={2}
           heading="This Week" 
           value={analyticsLoading ? "..." : analytics.week.toString()} 
-          description="Accepted CVs this week" 
+          description="Saved this week" 
           smallStats="Last 7 days" 
-          badgeBg="bg-orange-100" 
-          badgeText="text-orange-700" 
-          accentColor="bg-orange-100" 
+          badgeBg="bg-green-100" 
+          badgeText="text-green-700" 
+          accentColor="bg-green-100" 
           bgColor="bg-white" 
         />
         <Statcard 
           index={3}
           heading="This Month" 
           value={analyticsLoading ? "..." : analytics.month.toString()} 
-          description="Accepted CVs this month" 
+          description="Saved this month" 
           smallStats="Last 30 days" 
-          badgeBg="bg-violet-100" 
-          badgeText="text-violet-700" 
-          accentColor="bg-violet-100" 
+          badgeBg="bg-orange-100" 
+          badgeText="text-orange-700" 
+          accentColor="bg-orange-100" 
           bgColor="bg-white" 
         />
       </div>
 
-      {/* Search and Actions */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -169,7 +161,7 @@ function Dashboard({
         </div>
         <div className="flex items-center space-x-3">
           {newCVNotification && (
-            <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 animate-fade-in">
+            <div className="flex items-center space-x-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-200 animate-fade-in">
               <FiCheckCircle size={18} />
               <span className="text-sm font-medium">{newCVNotification}</span>
             </div>
@@ -290,9 +282,8 @@ function Dashboard({
         )}
       </motion.div>
      
-      {/* Table */}
       <Maintable 
-        cvData={acceptedCVs}
+        cvData={savedApplicants} 
         loading={loading}
         onPreview={handlePreview}
         onToggleStar={onToggleStar}
@@ -308,7 +299,6 @@ function Dashboard({
         />
       )}
 
-      {/* PDF Preview Modal */}
       <PDFPreviewModal
         isOpen={previewModal.isOpen}
         onClose={handleClosePreview}
@@ -319,4 +309,4 @@ function Dashboard({
   )
 }
 
-export default Dashboard
+export default SavedApplications

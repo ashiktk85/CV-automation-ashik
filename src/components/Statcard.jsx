@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 
 export default function StatCard({
   heading,
@@ -9,9 +10,15 @@ export default function StatCard({
   accentColor  ,
   badgeBg ,
   badgeText ,
+  index = 0
 }) {
   return (
-    <div className={`${bgColor} rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 relative overflow-hidden`}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      className={`${bgColor} rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 relative overflow-hidden`}
+    >
       
       {/* Background accent */}
       <div
@@ -35,6 +42,6 @@ export default function StatCard({
         {description}
       </p>
       
-    </div>
+    </motion.div>
   );
 }

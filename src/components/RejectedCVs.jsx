@@ -9,12 +9,12 @@ import PDFPreviewModal from './PDFPreviewModal'
 import Pagination from './Pagination'
 import axiosInstance from '../api/axiosInstance'
 
-function Dashboard({ 
+function RejectedCVs({ 
   cvData, 
   loading, 
   onRefresh, 
-  newCVAdded, 
-  onToggleStar, 
+  newCVAdded,
+  onToggleStar,
   onDelete,
   onSearch,
   searchQuery,
@@ -33,12 +33,11 @@ function Dashboard({
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
 
-  // Data is already filtered by backend (score >= 50)
-  const acceptedCVs = cvData
+  const rejectedCVs = cvData
 
   useEffect(() => {
     if (newCVAdded) {
-      setNewCVNotification('New CV received!')
+      setNewCVNotification('New rejected CV received!')
       const timer = setTimeout(() => {
         setNewCVNotification(null)
       }, 3000)
@@ -53,7 +52,7 @@ function Dashboard({
   const fetchAnalytics = async () => {
     setAnalyticsLoading(true)
     try {
-      const response = await axiosInstance.get('/api/cv/analytics/accepted')
+      const response = await axiosInstance.get('/api/cv/analytics/rejected')
       if (response.data.success) {
         setAnalytics(response.data.data)
       }
@@ -72,12 +71,6 @@ function Dashboard({
     setPreviewModal({ isOpen: false, googleDriveLink: null, fileName: null })
   }
 
-  const handleSort = () => {
-    // Toggle between score and date sorting
-    const newField = sortBy === 'score' ? 'createdAt' : 'score'
-    const newOrder = sortBy === newField && sortOrder === 'desc' ? 'asc' : 'desc'
-    onSortChange(newField, newOrder)
-  }
 
   const handleFilterScore = (score) => {
     onFilterChange(score === minScore ? null : score)
@@ -98,12 +91,12 @@ function Dashboard({
         className="flex sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
-          <p className="text-gray-600 mt-1">View and manage accepted CV submissions (score ≥ 50)</p>
+          <h1 className="text-3xl font-bold text-gray-800">Rejected CVs</h1>
+          <p className="text-gray-600 mt-1">View all rejected CV submissions</p>
         </div>
         <div>
-          <p className="text-md text-green-600 mt-1 flex items-center space-x-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <p className="text-md text-red-600 mt-1 flex items-center space-x-1">
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             <span>Real-time updates enabled</span>
           </p>
         </div>
@@ -113,46 +106,46 @@ function Dashboard({
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
         <Statcard 
           index={0}
-          heading="Total Accepted" 
+          heading="Total Rejected" 
           value={analyticsLoading ? "..." : analytics.total.toString()} 
-          description="Total accepted CVs (score ≥ 50)" 
+          description="Total rejected CV submissions" 
           smallStats={`${analytics.today} today · ${analytics.week} this week`} 
-          badgeBg="bg-blue-100" 
-          badgeText="text-blue-700" 
-          accentColor="bg-blue-100" 
+          badgeBg="bg-red-100" 
+          badgeText="text-red-700" 
+          accentColor="bg-red-100" 
           bgColor="bg-white" 
         />
         <Statcard 
           index={1}
           heading="Today" 
           value={analyticsLoading ? "..." : analytics.today.toString()} 
-          description="Accepted CVs received today" 
+          description="Rejected CVs today" 
           smallStats="Last 24 hours" 
-          badgeBg="bg-green-100" 
-          badgeText="text-green-700" 
-          accentColor="bg-green-100" 
-          bgColor="bg-white" 
-        />
-        <Statcard 
-          index={2}
-          heading="This Week" 
-          value={analyticsLoading ? "..." : analytics.week.toString()} 
-          description="Accepted CVs this week" 
-          smallStats="Last 7 days" 
           badgeBg="bg-orange-100" 
           badgeText="text-orange-700" 
           accentColor="bg-orange-100" 
           bgColor="bg-white" 
         />
         <Statcard 
+          index={2}
+          heading="This Week" 
+          value={analyticsLoading ? "..." : analytics.week.toString()} 
+          description="Rejected CVs this week" 
+          smallStats="Last 7 days" 
+          badgeBg="bg-gray-100" 
+          badgeText="text-gray-700" 
+          accentColor="bg-gray-100" 
+          bgColor="bg-white" 
+        />
+        <Statcard 
           index={3}
           heading="This Month" 
           value={analyticsLoading ? "..." : analytics.month.toString()} 
-          description="Accepted CVs this month" 
+          description="Rejected CVs this month" 
           smallStats="Last 30 days" 
-          badgeBg="bg-violet-100" 
-          badgeText="text-violet-700" 
-          accentColor="bg-violet-100" 
+          badgeBg="bg-yellow-100" 
+          badgeText="text-yellow-700" 
+          accentColor="bg-yellow-100" 
           bgColor="bg-white" 
         />
       </div>
@@ -169,7 +162,7 @@ function Dashboard({
         </div>
         <div className="flex items-center space-x-3">
           {newCVNotification && (
-            <div className="flex items-center space-x-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 animate-fade-in">
+            <div className="flex items-center space-x-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg border border-red-200 animate-fade-in">
               <FiCheckCircle size={18} />
               <span className="text-sm font-medium">{newCVNotification}</span>
             </div>
@@ -277,22 +270,22 @@ function Dashboard({
             <span className='font-bold'>Refresh</span>
           </button>
         </div>
-
-        {/* Click outside to close dropdowns */}
-        {(showFilter || showSort) && (
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => {
-              setShowFilter(false)
-              setShowSort(false)
-            }}
-          />
-        )}
       </motion.div>
+
+      {/* Click outside to close dropdowns */}
+      {(showFilter || showSort) && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setShowFilter(false)
+            setShowSort(false)
+          }}
+        />
+      )}
      
       {/* Table */}
       <Maintable 
-        cvData={acceptedCVs}
+        cvData={rejectedCVs} 
         loading={loading}
         onPreview={handlePreview}
         onToggleStar={onToggleStar}
@@ -319,4 +312,4 @@ function Dashboard({
   )
 }
 
-export default Dashboard
+export default RejectedCVs

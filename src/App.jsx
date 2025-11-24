@@ -1,23 +1,78 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
+import ShopifyApplications from './components/ShopifyApplications'
+import RejectedCVs from './components/RejectedCVs'
+import SavedApplications from './components/SavedApplications'
+import Login from './pages/Login'
 import { FiMenu, FiX } from 'react-icons/fi'
 import axiosInstance from './api/axiosInstance'
 import socket from './utils/socket'
+import { toast } from 'sonner'
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return children
+}
 
 function App() {
+  const navigate = useNavigate()
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    localStorage.getItem('isAuthenticated') === 'true'
+  )
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [activeView, setActiveView] = useState('dashboard')
   const [cvData, setCvData] = useState([])
   const [loading, setLoading] = useState(true)
   const [newCVAdded, setNewCVAdded] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [minScore, setMinScore] = useState(null)
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortOrder, setSortOrder] = useState('desc')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pagination, setPagination] = useState(null)
 
-  const fetchCVData = () => {
+  const fetchCVData = useCallback((view, search = '', score = null, sort = 'createdAt', order = 'desc', page = 1) => {
+    // Only set loading when explicitly fetching from backend (not for star/delete operations)
     setLoading(true)
-    axiosInstance.get('/api/cv/list')
+    
+    // Determine which endpoint to call based on view
+    let endpoint = '/api/cv/list'
+    if (view === 'dashboard') {
+      endpoint = '/api/cv/accepted'
+    } else if (view === 'shopify') {
+      endpoint = '/api/cv/shopify'
+    } else if (view === 'rejected') {
+      endpoint = '/api/cv/rejected'
+    } else if (view === 'starred') {
+      endpoint = '/api/cv/starred'
+    }
+    
+    // Build query parameters
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (score !== null) params.append('minScore', score)
+    if (sort) params.append('sortBy', sort)
+    if (order) params.append('sortOrder', order)
+    params.append('page', page)
+    params.append('limit', 12)
+    
+    const queryString = params.toString()
+    const fullUrl = queryString ? `${endpoint}?${queryString}` : endpoint
+    
+    axiosInstance.get(fullUrl)
       .then(response => {
         const data = response.data
         if (data.success) {
           setCvData(data.data || [])
+          setPagination(data.pagination || null)
         }
         setLoading(false)
       })
@@ -25,12 +80,28 @@ function App() {
         console.error('Error fetching CV data:', err)
         setLoading(false)
       })
-  }
+  }, [])
+
+  // Reset filters when view changes
+  useEffect(() => {
+    setSearchQuery('')
+    setMinScore(null)
+    setSortBy('createdAt')
+    setSortOrder('desc')
+    setCurrentPage(1)
+  }, [activeView])
+
+  // Reset to page 1 when search, sort, or filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, minScore, sortBy, sortOrder])
+
+  // Fetch data when view, search, sort, filter, or page changes
+  useEffect(() => {
+    fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
+  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData])
 
   useEffect(() => {
-    // Initial data fetch
-    fetchCVData()
-
     // Set up socket listeners for real-time updates
     socket.on('connect', () => {
       console.log('Connected to server via Socket.io')
@@ -44,22 +115,46 @@ function App() {
     socket.on('newCVUploaded', (eventData) => {
       if (eventData.success && eventData.data) {
         console.log('New CV received via socket:', eventData.data)
-        // Add the new CV to the existing list
-        setCvData(prevData => {
-          // Check if CV already exists (prevent duplicates) - MongoDB uses _id
-          const cvId = eventData.data._id || eventData.data.id
-          const exists = prevData.some(cv => (cv._id || cv.id) === cvId)
-          if (exists) {
-            console.log('CV already exists, skipping duplicate')
-            return prevData
-          }
-          // Add new CV at the beginning of the list
-          return [eventData.data, ...prevData]
-        })
-        // Mark that a new CV was added via socket
-        setNewCVAdded(true)
-        // Clear the flag after a short delay
-        setTimeout(() => setNewCVAdded(false), 3000)
+        
+        // Determine if the new CV should be shown in current view
+        const cv = eventData.data
+        let shouldShow = false
+        
+        if (activeView === 'dashboard') {
+          // Show if score >= 50
+          shouldShow = cv.score !== null && cv.score !== undefined && cv.score >= 50
+        } else if (activeView === 'shopify') {
+          // Show if has scoring data
+          shouldShow = cv.score !== null && cv.score !== undefined
+        } else if (activeView === 'rejected') {
+          // Show if rejected (score < 50 or no score)
+          shouldShow = (cv.score !== null && cv.score !== undefined && cv.score < 50) ||
+                      (cv.score === null || cv.score === undefined)
+        } else if (activeView === 'starred') {
+          shouldShow = cv.starred === true
+        }
+        
+        if (shouldShow) {
+          // Add the new CV to the existing list
+          setCvData(prevData => {
+            // Check if CV already exists (prevent duplicates) - MongoDB uses _id
+            const cvId = cv._id || cv.id
+            const exists = prevData.some(c => (c._id || c.id) === cvId)
+            if (exists) {
+              console.log('CV already exists, skipping duplicate')
+              return prevData
+            }
+            // Add new CV at the beginning of the list
+            return [cv, ...prevData]
+          })
+          // Mark that a new CV was added via socket
+          setNewCVAdded(true)
+          // Clear the flag after a short delay
+          setTimeout(() => setNewCVAdded(false), 3000)
+        } else {
+          // CV doesn't match current view filter, refresh to get updated data
+          fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
+        }
       }
     })
 
@@ -69,9 +164,80 @@ function App() {
       socket.off('disconnect')
       socket.off('newCVUploaded')
     }
+  }, [activeView, fetchCVData])
+
+  const handleToggleStar = useCallback((id, starred) => {
+    // Optimistically update local state immediately (no loading, no fetch)
+    setCvData(prevData => 
+      prevData.map(cv => {
+        const cvId = cv._id || cv.id
+        if (cvId === id) {
+          return { ...cv, starred }
+        }
+        return cv
+      })
+    )
+
+    // Update on backend silently (don't show loading state)
+    axiosInstance.patch(`/api/cv/${id}/starred`, { starred })
+      .then(() => {
+        toast.success(starred ? 'Added to saved' : 'Removed from saved')
+      })
+      .catch(err => {
+        console.error('Error updating starred status:', err)
+        toast.error('Failed to update saved status')
+        // Revert on error - refresh from backend
+        fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
+      })
+  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData])
+
+  const handleDeleteCv = useCallback((id) => {
+    // Optimistically remove from local state immediately (no loading, no fetch)
+    setCvData(prevData => prevData.filter(cv => {
+      const cvId = cv._id || cv.id
+      return cvId !== id
+    }))
+
+    // Delete on backend silently (don't show loading state)
+    axiosInstance.delete(`/api/cv/${id}`)
+      .then(() => {
+        toast.success('CV deleted')
+      })
+      .catch(err => {
+        console.error('Error deleting CV:', err)
+        toast.error('Failed to delete CV')
+        // Revert on error - refresh from backend
+        fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
+      })
+  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData])
+
+  const handlePageChange = useCallback((page) => {
+    setCurrentPage(page)
   }, [])
 
-  return (
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('isAuthenticated')
+    localStorage.removeItem('userEmail')
+    setIsAuthenticated(false)
+    toast.success('Logged out successfully')
+    navigate('/login')
+  }, [navigate])
+
+  // Check authentication status on mount and when localStorage changes
+  useEffect(() => {
+    const checkAuth = () => {
+      const authStatus = localStorage.getItem('isAuthenticated') === 'true'
+      setIsAuthenticated(authStatus)
+    }
+
+    checkAuth()
+    // Listen for storage changes (e.g., from other tabs)
+    window.addEventListener('storage', checkAuth)
+    return () => window.removeEventListener('storage', checkAuth)
+  }, [])
+
+  // Main App Layout Component
+  const AppLayout = () => (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile menu button */}
       <button
@@ -86,8 +252,9 @@ function App() {
         <Sidebar
           isOpen={sidebarOpen}
           setIsOpen={setSidebarOpen}
-          activeView="dashboard"
-          setActiveView={() => {}}
+          activeView={activeView}
+          setActiveView={setActiveView}
+          onLogout={handleLogout}
         />
 
         {/* Main content */}
@@ -97,11 +264,101 @@ function App() {
           }`}
         >
           <div className="p-4 lg:p-8">
-            <Dashboard cvData={cvData} loading={loading} onRefresh={fetchCVData} newCVAdded={newCVAdded} />
+            {activeView === 'dashboard' && (
+              <Dashboard 
+                cvData={cvData} 
+                loading={loading} 
+                onRefresh={() => fetchCVData('dashboard', searchQuery, minScore, sortBy, sortOrder, currentPage)} 
+                newCVAdded={newCVAdded}
+                onToggleStar={handleToggleStar}
+                onDelete={handleDeleteCv}
+                onSearch={setSearchQuery}
+                searchQuery={searchQuery}
+                onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
+                onFilterChange={(score) => setMinScore(score)}
+                minScore={minScore}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                pagination={pagination}
+                onPageChange={handlePageChange}
+              />
+            )}
+            {activeView === 'shopify' && (
+              <ShopifyApplications 
+                cvData={cvData} 
+                loading={loading} 
+                onRefresh={() => fetchCVData('shopify', searchQuery, minScore, sortBy, sortOrder, currentPage)} 
+                newCVAdded={newCVAdded}
+                onToggleStar={handleToggleStar}
+                onDelete={handleDeleteCv}
+                onSearch={setSearchQuery}
+                searchQuery={searchQuery}
+                onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
+                onFilterChange={(score) => setMinScore(score)}
+                minScore={minScore}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                pagination={pagination}
+                onPageChange={handlePageChange}
+              />
+            )}
+            {activeView === 'rejected' && (
+              <RejectedCVs 
+                cvData={cvData} 
+                loading={loading} 
+                onRefresh={() => fetchCVData('rejected', searchQuery, minScore, sortBy, sortOrder, currentPage)} 
+                newCVAdded={newCVAdded}
+                onToggleStar={handleToggleStar}
+                onDelete={handleDeleteCv}
+                onSearch={setSearchQuery}
+                searchQuery={searchQuery}
+                onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
+                onFilterChange={(score) => setMinScore(score)}
+                minScore={minScore}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                pagination={pagination}
+                onPageChange={handlePageChange}
+              />
+            )}
+            {activeView === 'starred' && (
+              <SavedApplications 
+                cvData={cvData} 
+                loading={loading} 
+                onRefresh={() => fetchCVData('starred', searchQuery, minScore, sortBy, sortOrder, currentPage)} 
+                newCVAdded={newCVAdded}
+                onToggleStar={handleToggleStar}
+                onDelete={handleDeleteCv}
+                onSearch={setSearchQuery}
+                searchQuery={searchQuery}
+                onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
+                onFilterChange={(score) => setMinScore(score)}
+                minScore={minScore}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                pagination={pagination}
+                onPageChange={handlePageChange}
+              />
+            )}
           </div>
         </main>
       </div>
     </div>
+  )
+
+  return (
+    <Routes>
+      <Route path="/login" element={
+        isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
+      } />
+      <Route path="/dashboard" element={
+        <ProtectedRoute>
+          <AppLayout />
+        </ProtectedRoute>
+      } />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   )
 }
 

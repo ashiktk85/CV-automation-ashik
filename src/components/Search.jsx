@@ -1,19 +1,40 @@
+import { useState } from 'react'
+import { motion } from 'framer-motion'
 
-export default function SearchBar() {
-  const handleSearch = (e) => {
+export default function SearchBar({ onSearch, value = '' }) {
+  const [searchValue, setSearchValue] = useState(value)
+
+  const handleSubmit = (e) => {
     e.preventDefault()
-    const formData = new FormData(e.target)
-    const query = formData.get("search")
-    console.log("Search query:", query)
-    // Add your search logic here
+    onSearch(searchValue)
+  }
+
+  const handleChange = (e) => {
+    const newValue = e.target.value
+    setSearchValue(newValue)
+    // Debounce: call onSearch after user stops typing for 500ms
+    if (onSearch) {
+      clearTimeout(window.searchTimeout)
+      window.searchTimeout = setTimeout(() => {
+        onSearch(newValue)
+      }, 500)
+    }
   }
 
   return (
-    <form onSubmit={handleSearch} className="w-full max-w-2xl">
+    <motion.form
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+      onSubmit={handleSubmit}
+      className="w-full max-w-2xl"
+    >
       <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white h-10">
         <input
           type="text"
           name="search"
+          value={searchValue}
+          onChange={handleChange}
           placeholder="Search name or email..."
           className="flex-1 px-4 py-1 outline-none text-gray-700"
         />
@@ -34,6 +55,6 @@ export default function SearchBar() {
           </svg>
         </button>
       </div>
-    </form>
+    </motion.form>
   )
 }

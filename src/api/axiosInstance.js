@@ -10,10 +10,14 @@ const axiosInstance = axios.create({
   },
 })
 
-// Request interceptor
+
 axiosInstance.interceptors.request.use(
   (config) => {
-    // You can add auth tokens or other headers here if needed
+
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true'
+    if (isAuthenticated) {
+
+    }
     return config
   },
   (error) => {
@@ -21,21 +25,38 @@ axiosInstance.interceptors.request.use(
   }
 )
 
-// Response interceptor
+
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+
+      localStorage.removeItem('isAuthenticated')
+      localStorage.removeItem('userEmail')
+ 
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+
 axiosInstance.interceptors.response.use(
   (response) => {
     return response
   },
   (error) => {
-    // Handle common errors here
+
     if (error.response) {
-      // Server responded with error status
+
       console.error('API Error:', error.response.data)
     } else if (error.request) {
-      // Request was made but no response received
+
       console.error('Network Error:', error.request)
     } else {
-      // Something else happened
+
       console.error('Error:', error.message)
     }
     return Promise.reject(error)
