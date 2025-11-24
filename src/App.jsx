@@ -43,20 +43,23 @@ function App() {
     // Listen for new CV uploads
     socket.on('newCVUploaded', (eventData) => {
       if (eventData.success && eventData.data) {
+        console.log('New CV received via socket:', eventData.data)
         // Add the new CV to the existing list
         setCvData(prevData => {
-          // Check if CV already exists (prevent duplicates)
-          const exists = prevData.some(cv => cv.id === eventData.data.id)
+          // Check if CV already exists (prevent duplicates) - MongoDB uses _id
+          const cvId = eventData.data._id || eventData.data.id
+          const exists = prevData.some(cv => (cv._id || cv.id) === cvId)
           if (exists) {
+            console.log('CV already exists, skipping duplicate')
             return prevData
           }
-          // Mark that a new CV was added via socket
-          setNewCVAdded(true)
-          // Clear the flag after a short delay
-          setTimeout(() => setNewCVAdded(false), 3000)
           // Add new CV at the beginning of the list
           return [eventData.data, ...prevData]
         })
+        // Mark that a new CV was added via socket
+        setNewCVAdded(true)
+        // Clear the flag after a short delay
+        setTimeout(() => setNewCVAdded(false), 3000)
       }
     })
 

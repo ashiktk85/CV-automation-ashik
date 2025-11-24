@@ -1,7 +1,10 @@
 import axios from 'axios'
 
+const baseURL = 'https://cv-automation-backend-njf1.onrender.com'
+const localBaseURL = 'http://localhost:3001'
+
 const axiosInstance = axios.create({
-  baseURL: 'https://cv-automation-backend-njf1.onrender.com',
+  baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

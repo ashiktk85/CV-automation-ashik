@@ -8,7 +8,7 @@ import SearchBar from './Search'
 
 function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
   const [newCVNotification, setNewCVNotification] = useState(null)
-  const [previewModal, setPreviewModal] = useState({ isOpen: false, filePath: null, fileName: null })
+  const [previewModal, setPreviewModal] = useState({ isOpen: false, googleDriveLink: null, fileName: null })
 
   useEffect(() => {
     if (newCVAdded) {
@@ -32,12 +32,12 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
     })
   }
 
-  const handlePreview = (filePath, fileName) => {
-    setPreviewModal({ isOpen: true, filePath, fileName })
+  const handlePreview = (googleDriveLink, fileName) => {
+    setPreviewModal({ isOpen: true, googleDriveLink, fileName })
   }
 
   const handleClosePreview = () => {
-    setPreviewModal({ isOpen: false, filePath: null, fileName: null })
+    setPreviewModal({ isOpen: false, googleDriveLink: null, fileName: null })
   }
 
   return (
@@ -101,13 +101,17 @@ function Dashboard({ cvData, loading, onRefresh, newCVAdded }) {
           </div>
        
       {/* Table */}
-      <Maintable />
+      <Maintable 
+        cvData={cvData} 
+        loading={loading}
+        onPreview={handlePreview}
+      />
 
       {/* PDF Preview Modal */}
       <PDFPreviewModal
         isOpen={previewModal.isOpen}
         onClose={handleClosePreview}
-        filePath={previewModal.filePath}
+        googleDriveLink={previewModal.googleDriveLink}
         fileName={previewModal.fileName}
       />
     </div>

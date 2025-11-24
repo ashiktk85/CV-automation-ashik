@@ -8,64 +8,39 @@ import { RiAccountBoxFill } from "react-icons/ri";
 import { GrValidate } from "react-icons/gr";
 import { FaCalendar } from "react-icons/fa";
 import { MdCreditScore } from "react-icons/md";
+import axiosInstance from "../api/axiosInstance";
 
-export default function ApplicantTable() {
-    const [applicants, setApplicants] = useState([
-        {
-            id: 1,
-            name: "Sarah Johnson",
-            email: "sarah.johnson@gmail.com",
-            phone: "+1 (555) 123-4567",
-            appliedDate: "2024-11-15",
-            cvUrl: "/documents/sarah-johnson-cv.pdf",
-            score: 92,
-            skillsMatched: ["GC-MS", "HPLC", "QC lab", "Method validation"],
-        },
-        {
-            id: 2,
-            name: "Michael Chen",
-            email: "michael.chen@gmail.com",
-            phone: "+1 (555) 234-5678",
-            appliedDate: "2024-11-18",
-            cvUrl: "/documents/michael-chen-cv.pdf",
-            score: 78,
-            skillsMatched: ["HPLC", "LC-MS", "Method development"],
-        },
-        {
-            id: 3,
-            name: "Emily Rodriguez",
-            email: "emily.rodriguez@gmail.com",
-            phone: "+1 (555) 345-6789",
-            appliedDate: "2024-11-20",
-            cvUrl: "/documents/emily-rodriguez-cv.pdf",
-            score: 64,
-            skillsMatched: ["QC environment", "SOPs", "Stability studies"],
-        },
-        {
-            id: 4,
-            name: "James Anderson",
-            email: "james.anderson@gmail.com",
-            phone: "+1 (555) 456-7890",
-            appliedDate: "2024-11-21",
-            cvUrl: "/documents/james-anderson-cv.pdf",
-            score: 55,
-            skillsMatched: ["Laboratory documentation", "Calibration"],
-        },
-        {
-            id: 5,
-            name: "Olivia Martinez",
-            email: "olivia.martinez@gmail.com",
-            phone: "+1 (555) 567-8901",
-            appliedDate: "2024-11-22",
-            cvUrl: "/documents/olivia-martinez-cv.pdf",
-            score: 48,
-            skillsMatched: ["General lab work"],
-        },
-    ])
-
+export default function Maintable({ cvData = [], loading = false, onPreview }) {
     const [openSkillsId, setOpenSkillsId] = useState(null)
 
-    const handleDelete = (id) => setApplicants(applicants.filter((a) => a.id !== id))
+    // Transform CV data to match table format
+    const applicants = cvData.map((cv) => {
+        // Prefer Cloudinary URL, fall back to local file path
+        const baseURL = axiosInstance.defaults.baseURL || 'http://localhost:3001';
+        const fileUrl = cv.file?.supabaseUrl 
+            ? cv.file.supabaseUrl
+            : cv.file?.localFilePath 
+                ? `${baseURL}${cv.file.localFilePath}`
+                : null;
+        
+        return {
+            id: cv._id || cv.id,
+            name: cv.fullName || 'N/A',
+            email: cv.email || 'N/A',
+            phone: cv.phoneNumber || 'N/A',
+            appliedDate: cv.timestamp || cv.createdAt || new Date(),
+            cvUrl: fileUrl,
+            fileName: cv.file?.localFileName || cv.file?.fileName || 'CV.pdf',
+            jobTitle: cv.jobTitle || 'N/A',
+            score: null, // Score not available from CV data
+            skillsMatched: [], // Skills not available from CV data
+        };
+    })
+
+    const handleDelete = (id) => {
+        // TODO: Implement delete functionality with API call
+        console.log('Delete CV:', id)
+    }
     const handleEmailClick = (email) => {
         const subject = encodeURIComponent("Interview Invitation – QC / Lab Analyst Position");
 
@@ -95,26 +70,51 @@ Team Avoria`
     };
 
 
-    const handlePhoneClick = (phone) =>
-        window.open(`https://wa.me/${phone.replace(/\D/g, "")}`, "_blank")
-    const handleCvClick = (url, name) => alert(`Opening CV for ${name}`)
-
-    const getScoreClasses = (score) => {
-        if (score >= 80) return "bg-emerald-100 text-emerald-800"
-        if (score >= 60) return "bg-amber-100 text-amber-800"
-        if (score >= 50) return "bg-red-100 text-red-800"
-        return "bg-gray-100 text-gray-500"
+    const handlePhoneClick = (phone) => {
+        if (phone && phone !== 'N/A') {
+            window.open(`https://wa.me/${phone.replace(/\D/g, "")}`, "_blank")
+        }
+    }
+    
+    const handleCvClick = (url, fileName) => {
+        if (url && onPreview) {
+            onPreview(url, fileName)
+        } else if (url) {
+            window.open(url, "_blank")
+        }
+    }
+    
+    const handleDownload = (url, fileName) => {
+        if (url) {
+            const link = document.createElement('a')
+            link.href = url
+            link.download = fileName || 'CV.pdf'
+            link.target = '_blank'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        }
     }
 
-    const getScoreLabel = (score) => {
-        if (score >= 80) return "Strong match"
-        if (score >= 60) return "Good match"
-        if (score >= 50) return "Borderline"
-        return "Low match"
-    }
 
     const selectedApplicant =
         openSkillsId !== null ? applicants.find((a) => a.id === openSkillsId) : null
+
+    if (loading) {
+        return (
+            <div className="w-full overflow-hidden rounded-lg border border-border bg-card p-8">
+                <div className="text-center text-gray-500">Loading CVs...</div>
+            </div>
+        )
+    }
+
+    if (applicants.length === 0) {
+        return (
+            <div className="w-full overflow-hidden rounded-lg border border-border bg-card p-8">
+                <div className="text-center text-gray-500">No CVs found. Upload a CV to get started.</div>
+            </div>
+        )
+    }
 
     return (
         <div className="w-full overflow-hidden rounded-lg border border-border bg-card relative">
@@ -155,7 +155,7 @@ Team Avoria`
                             <th className="px-6 py-4 text-left text-md font-semibold">
                                 <div className="flex items-center gap-2">
                                     <GrValidate className="h-5 w-5" />
-                                    Score
+                                    Job Title
                                 </div>
                             </th>
 
@@ -230,51 +230,47 @@ Team Avoria`
                                     })}
                                 </td>
 
-                                {/* SCORE */}
+                                {/* JOB TITLE */}
                                 <td className="px-6 py-2">
-                                    <span
-                                        className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${getScoreClasses(
-                                            applicant.score
-                                        )}`}
-                                    >
-                                        {applicant.score}% • {getScoreLabel(applicant.score)}
+                                    <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-800">
+                                        {applicant.jobTitle}
                                     </span>
-
-                                    {/* CLICK TO OPEN SKILLS */}
-                                    {applicant.skillsMatched?.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setOpenSkillsId(applicant.id)}
-                                            className="mt-2 inline-flex items-center rounded-full bg-muted px-3 py-1 text-[15px] font-semibold text-muted-foreground hover:bg-muted/80"
-                                        >
-                                            {applicant.skillsMatched.length} skills matched
-                                        </button>
-                                    )}
                                 </td>
 
                                 {/* CV */}
                                 <td className="px-6 py-2">
-                                    <button
-                                        onClick={() => handleCvClick(applicant.cvUrl, applicant.name)}
-                                        className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
-                                    >
-                                        <FileText className="h-4 w-4 text-blue-500" />
-                                        <span className="hover:underline">View CV</span>
-                                    </button>
+                                    {applicant.cvUrl ? (
+                                        <button
+                                            onClick={() => handleCvClick(applicant.cvUrl, applicant.fileName)}
+                                            className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
+                                        >
+                                            <FileText className="h-4 w-4 text-blue-500" />
+                                            <span className="hover:underline">View CV</span>
+                                        </button>
+                                    ) : (
+                                        <span className="text-[16px] text-gray-400">No CV available</span>
+                                    )}
                                 </td>
 
                                 {/* ACTIONS */}
                                 <td className="px-6 py-2">
                                     <div className="flex items-center gap-2">
-                                        <button className="h-8 w-8 rounded-md hover:bg-primary/10">
-                                            <FaDownload className="h-5 w-5" />
-                                        </button>
-                                        <button className="h-8 w-8 rounded-md hover:bg-yellow-500/10">
+                                        {applicant.cvUrl && (
+                                            <button 
+                                                onClick={() => handleDownload(applicant.cvUrl, applicant.fileName)}
+                                                className="h-8 w-8 rounded-md hover:bg-primary/10"
+                                                title="Download CV"
+                                            >
+                                                <FaDownload className="h-5 w-5" />
+                                            </button>
+                                        )}
+                                        <button className="h-8 w-8 rounded-md hover:bg-yellow-500/10" title="Star">
                                             <Star className="h-5 w-5 text-yellow-500" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(applicant.id)}
                                             className="h-8 w-8 rounded-md hover:bg-red-500/10"
+                                            title="Delete"
                                         >
                                             <Trash2 className="h-5 w-5 text-red-500" />
                                         </button>
@@ -300,23 +296,17 @@ Team Avoria`
                         <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
                             <div className="flex items-start justify-between mb-4">
                                 <div className="space-y-2">
-                                    <h2 className="text-xl font-semibold text-gray-800 mb-8">Matched Skills</h2>
+                                    <h2 className="text-xl font-semibold text-gray-800 mb-8">Applicant Details</h2>
                                     <div className="flex gap-2">
                                         <p className="text-lg font-medium text-muted-foreground">
                                             {selectedApplicant.name}
                                         </p>
-
-                                        {/* SAME COLOR PILL AS TABLE SCORE */}
-                                        <span
-                                            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-md font-semibold mb-5 ${getScoreClasses(
-                                                selectedApplicant.score
-                                            )}`}
-                                        >
-                                            {selectedApplicant.score}% • {getScoreLabel(selectedApplicant.score)}
-                                        </span>
                                     </div>
                                     <p className="text-lg font-medium text-muted-foreground">
-                                        {selectedApplicant.skillsMatched.length} skills matched
+                                        Job Title: {selectedApplicant.jobTitle}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Email: {selectedApplicant.email}
                                     </p>
                                 </div>
 
@@ -326,17 +316,6 @@ Team Avoria`
                                 >
                                     ✕
                                 </button>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {selectedApplicant.skillsMatched.map((skill, i) => (
-                                    <span
-                                        key={i}
-                                        className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-[14px] font-medium text-muted-foreground"
-                                    >
-                                        {skill}
-                                    </span>
-                                ))}
                             </div>
 
                             <div className="flex justify-end">

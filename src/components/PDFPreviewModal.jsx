@@ -1,14 +1,16 @@
 import { FiX, FiDownload } from 'react-icons/fi'
 import axiosInstance from '../api/axiosInstance'
 
-function PDFPreviewModal({ isOpen, onClose, filePath, fileName }) {
+function PDFPreviewModal({ isOpen, onClose, googleDriveLink, fileName }) {
   if (!isOpen) return null
 
-  const pdfUrl = `${axiosInstance.defaults.baseURL}${filePath}`
-
   const handleDownload = () => {
-    window.open(pdfUrl, '_blank')
+    if (googleDriveLink) {
+      window.open(googleDriveLink, '_blank')
+    }
   }
+
+  const pdfUrl = googleDriveLink || ''
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
