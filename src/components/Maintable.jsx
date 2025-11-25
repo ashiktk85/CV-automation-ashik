@@ -592,7 +592,7 @@ const Maintable = memo(function Maintable({
 
                 {/* SCORE */}
                 <td className="px-4 py-3 whitespace-nowrap">
-                  {applicant.score !== null && applicant.score >= 50 &&
+                  {applicant.score !== null  &&
                     applicant.score !== undefined ? (
                     <div className="flex gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
