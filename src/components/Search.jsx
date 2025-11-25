@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useLanguage } from '../i18n/LanguageProvider'
 
 export default function SearchBar({ onSearch, value = '' }) {
+  const { t } = useLanguage()
   const [inputValue, setInputValue] = useState(value)
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export default function SearchBar({ onSearch, value = '' }) {
           name="search"
           value={inputValue}
           onChange={handleChange}
-          placeholder="Search name or email..."
+          placeholder={t('search.placeholder')}
           className="flex-1 px-4 py-1 outline-none text-gray-700"
         />
         <button type="submit" className="bg-black text-white px-6 py-3 hover:bg-gray-800 transition-colors">

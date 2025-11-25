@@ -11,6 +11,7 @@ import { FiMenu, FiX } from 'react-icons/fi'
 import axiosInstance from './api/axiosInstance'
 import socket from './utils/socket'
 import { toast } from 'sonner'
+import LanguageSwitcher from './components/LanguageSwitcher'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -329,6 +330,9 @@ function App() {
           }`}
         >
           <div className="p-4 lg:p-8">
+            <div className="flex justify-end mb-4">
+              <LanguageSwitcher />
+            </div>
             {activeView === 'dashboard' && (
               <Dashboard 
                 cvData={cvData} 

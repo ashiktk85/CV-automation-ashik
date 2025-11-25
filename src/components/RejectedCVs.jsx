@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { FiRefreshCw, FiCheckCircle, FiTrash2 } from 'react-icons/fi'
 import { BiSort } from "react-icons/bi";
 import { motion } from 'framer-motion'
@@ -8,6 +8,7 @@ import SearchBar from './Search'
 import PDFPreviewModal from './PDFPreviewModal'
 import Pagination from './Pagination'
 import axiosInstance from '../api/axiosInstance'
+import { useLanguage } from '../i18n/LanguageProvider'
 
 function RejectedCVs({ 
   cvData, 
@@ -28,6 +29,7 @@ function RejectedCVs({
   pagination,
   onPageChange
 }) {
+  const { t } = useLanguage()
   const [newCVNotification, setNewCVNotification] = useState(null)
   const [previewModal, setPreviewModal] = useState({ isOpen: false, googleDriveLink: null, fileName: null })
   const [analytics, setAnalytics] = useState({ total: 0, today: 0, week: 0, month: 0 })
@@ -42,13 +44,13 @@ function RejectedCVs({
 
   useEffect(() => {
     if (newCVAdded) {
-      setNewCVNotification('New rejected CV received!')
+      setNewCVNotification(t('common.newCv'))
       const timer = setTimeout(() => {
         setNewCVNotification(null)
       }, 3000)
       return () => clearTimeout(timer)
     }
-  }, [newCVAdded])
+  }, [newCVAdded, t])
 
   useEffect(() => {
     fetchAnalytics()
@@ -81,6 +83,45 @@ function RejectedCVs({
     onFilterChange(score === minScore ? null : score)
   }
 
+  const stats = useMemo(() => [
+    {
+      heading: t('rejected.stats.totalHeading'),
+      value: analyticsLoading ? '...' : analytics.total.toString(),
+      description: t('rejected.stats.totalDesc'),
+      small: analyticsLoading ? '...' : t('rejected.stats.totalSmall', { today: analytics.today, week: analytics.week }),
+      badgeBg: 'bg-red-100',
+      badgeText: 'text-red-700',
+      accentColor: 'bg-red-100'
+    },
+    {
+      heading: t('rejected.stats.todayHeading'),
+      value: analyticsLoading ? '...' : analytics.today.toString(),
+      description: t('rejected.stats.todayDesc'),
+      small: t('rejected.stats.todaySmall'),
+      badgeBg: 'bg-orange-100',
+      badgeText: 'text-orange-700',
+      accentColor: 'bg-orange-100'
+    },
+    {
+      heading: t('rejected.stats.weekHeading'),
+      value: analyticsLoading ? '...' : analytics.week.toString(),
+      description: t('rejected.stats.weekDesc'),
+      small: t('rejected.stats.weekSmall'),
+      badgeBg: 'bg-gray-100',
+      badgeText: 'text-gray-700',
+      accentColor: 'bg-gray-100'
+    },
+    {
+      heading: t('rejected.stats.monthHeading'),
+      value: analyticsLoading ? '...' : analytics.month.toString(),
+      description: t('rejected.stats.monthDesc'),
+      small: t('rejected.stats.monthSmall'),
+      badgeBg: 'bg-yellow-100',
+      badgeText: 'text-yellow-700',
+      accentColor: 'bg-yellow-100'
+    }
+  ], [analytics, analyticsLoading, t])
+
   const handleDeleteAllClick = () => {
     setDeleteAllModalOpen(true)
   }
@@ -111,63 +152,33 @@ function RejectedCVs({
         className="flex sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Rejected CVs</h1>
-          <p className="text-gray-600 mt-1">View all rejected CV submissions</p>
+          <h1 className="text-3xl font-bold text-gray-800">{t('rejected.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('rejected.subtitle')}</p>
         </div>
         <div>
           <p className="text-md text-red-600 mt-1 flex items-center space-x-1">
             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-            <span>Real-time updates enabled</span>
+            <span>{t('common.realTime')}</span>
           </p>
         </div>
       </motion.div>
 
       {/* Stats Cards */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-        <Statcard 
-          index={0}
-          heading="Total Rejected" 
-          value={analyticsLoading ? "..." : analytics.total.toString()} 
-          description="Total rejected CV submissions" 
-          smallStats={`${analytics.today} today · ${analytics.week} this week`} 
-          badgeBg="bg-red-100" 
-          badgeText="text-red-700" 
-          accentColor="bg-red-100" 
-          bgColor="bg-white" 
-        />
-        <Statcard 
-          index={1}
-          heading="Today" 
-          value={analyticsLoading ? "..." : analytics.today.toString()} 
-          description="Rejected CVs today" 
-          smallStats="Last 24 hours" 
-          badgeBg="bg-orange-100" 
-          badgeText="text-orange-700" 
-          accentColor="bg-orange-100" 
-          bgColor="bg-white" 
-        />
-        <Statcard 
-          index={2}
-          heading="This Week" 
-          value={analyticsLoading ? "..." : analytics.week.toString()} 
-          description="Rejected CVs this week" 
-          smallStats="Last 7 days" 
-          badgeBg="bg-gray-100" 
-          badgeText="text-gray-700" 
-          accentColor="bg-gray-100" 
-          bgColor="bg-white" 
-        />
-        <Statcard 
-          index={3}
-          heading="This Month" 
-          value={analyticsLoading ? "..." : analytics.month.toString()} 
-          description="Rejected CVs this month" 
-          smallStats="Last 30 days" 
-          badgeBg="bg-yellow-100" 
-          badgeText="text-yellow-700" 
-          accentColor="bg-yellow-100" 
-          bgColor="bg-white" 
-        />
+        {stats.map((card, idx) => (
+          <Statcard
+            key={card.heading}
+            index={idx}
+            heading={card.heading}
+            value={card.value}
+            description={card.description}
+            smallStats={card.small}
+            badgeBg={card.badgeBg}
+            badgeText={card.badgeText}
+            accentColor={card.accentColor}
+            bgColor="bg-white"
+          />
+        ))}
       </div>
 
       {/* Search and Actions */}
@@ -198,12 +209,12 @@ function RejectedCVs({
               className="flex items-center space-x-2 px-6 py-1 bg-white border border-black/40 text-black rounded-lg hover:bg-gray-100 transition-colors shadow-md"
             >
               <BiSort size={18} />
-              <span className='text-black font-bold'>Filter</span>
+              <span className='text-black font-bold'>{t('common.filter')}</span>
             </button>
             {showFilter && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
                 <div className="p-2">
-                  <div className="text-xs font-semibold text-gray-500 px-2 py-1">Min Score</div>
+                  <div className="text-xs font-semibold text-gray-500 px-2 py-1">{t('common.minScore')}</div>
                   {[50, 60, 70, 80, 90].map(score => (
                     <button
                       key={score}
@@ -226,7 +237,7 @@ function RejectedCVs({
                       }}
                       className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 text-red-600"
                     >
-                      Clear Filter
+                      {t('common.clearFilter')}
                     </button>
                   )}
                 </div>
@@ -245,13 +256,13 @@ function RejectedCVs({
             >
               <BiSort size={18} />
               <span className='text-black font-bold'>
-                Sort {sortBy === 'score' ? 'Score' : 'Date'} {sortOrder === 'asc' ? '↑' : '↓'}
+                {t('common.sort')} {sortBy === 'score' ? t('maintable.columns.score') : t('common.date')} {sortOrder === 'asc' ? '↑' : '↓'}
               </span>
             </button>
             {showSort && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
                 <div className="p-2">
-                  <div className="text-xs font-semibold text-gray-500 px-2 py-1 mb-1">Sort By</div>
+                  <div className="text-xs font-semibold text-gray-500 px-2 py-1 mb-1">{t('common.sortBy')}</div>
                   <button
                     onClick={() => {
                       onSortChange('score', sortBy === 'score' && sortOrder === 'desc' ? 'asc' : 'desc')
@@ -261,7 +272,7 @@ function RejectedCVs({
                       sortBy === 'score' ? 'bg-blue-50 text-blue-700 font-semibold' : ''
                     }`}
                   >
-                    Score {sortBy === 'score' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    {t('maintable.columns.score')} {sortBy === 'score' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </button>
                   <button
                     onClick={() => {
@@ -272,7 +283,7 @@ function RejectedCVs({
                       sortBy === 'createdAt' ? 'bg-blue-50 text-blue-700 font-semibold' : ''
                     }`}
                   >
-                    Date {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    {t('common.date')} {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </button>
                 </div>
               </div>
@@ -288,14 +299,14 @@ function RejectedCVs({
               className="flex items-center space-x-2 px-6 py-1 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md"
             >
               <FiRefreshCw size={18} />
-              <span className='font-bold'>Refresh</span>
+            <span className='font-bold'>{t('common.refresh')}</span>
             </button>
             <button
               onClick={handleDeleteAllClick}
               className="flex items-center space-x-2 px-6 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md"
             >
               <FiTrash2 size={18} />
-              <span className='font-bold'>Delete All</span>
+              <span className='font-bold'>{t('rejected.deleteAll')}</span>
             </button>
           </div>
         </div>
@@ -346,9 +357,9 @@ function RejectedCVs({
           <div className="fixed inset-0 z-40 bg-black/40" />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
-              <h3 className="text-xl font-semibold text-gray-900">Delete All Rejected CVs</h3>
+              <h3 className="text-xl font-semibold text-gray-900">{t('rejected.deleteModal.title')}</h3>
               <p className="text-gray-600">
-                This will permanently delete every rejected CV. This action cannot be undone.
+                {t('rejected.deleteModal.body')}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -356,14 +367,14 @@ function RejectedCVs({
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
                   disabled={deleteAllLoading}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleConfirmDeleteAll}
                   className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
                   disabled={deleteAllLoading}
                 >
-                  {deleteAllLoading ? 'Deleting...' : 'Delete All'}
+                  {deleteAllLoading ? t('common.loading') : t('rejected.deleteAll')}
                 </button>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { FiRefreshCw, FiCheckCircle } from 'react-icons/fi'
 import { BiSort } from "react-icons/bi";
 import { motion } from 'framer-motion'
@@ -8,6 +8,7 @@ import SearchBar from './Search'
 import PDFPreviewModal from './PDFPreviewModal'
 import Pagination from './Pagination'
 import axiosInstance from '../api/axiosInstance'
+import { useLanguage } from '../i18n/LanguageProvider'
 
 function GCMSApplications({ 
   cvData, 
@@ -27,6 +28,7 @@ function GCMSApplications({
   pagination,
   onPageChange
 }) {
+  const { t } = useLanguage()
   const [newCVNotification, setNewCVNotification] = useState(null)
   const [previewModal, setPreviewModal] = useState({ isOpen: false, googleDriveLink: null, fileName: null })
   const [analytics, setAnalytics] = useState({ total: 0, today: 0, week: 0, month: 0 })
@@ -39,13 +41,13 @@ function GCMSApplications({
 
   useEffect(() => {
     if (newCVAdded) {
-      setNewCVNotification('New GCMS application received!')
+      setNewCVNotification(t('common.newCv'))
       const timer = setTimeout(() => {
         setNewCVNotification(null)
       }, 3000)
       return () => clearTimeout(timer)
     }
-  }, [newCVAdded])
+  }, [newCVAdded, t])
 
   useEffect(() => {
     fetchAnalytics()
@@ -77,6 +79,45 @@ function GCMSApplications({
     onFilterChange(score === minScore ? null : score)
   }
 
+  const stats = useMemo(() => [
+    {
+      heading: t('gcms.stats.totalHeading'),
+      value: analyticsLoading ? '...' : analytics.total.toString(),
+      description: t('gcms.stats.totalDesc'),
+      small: analyticsLoading ? '...' : t('gcms.stats.totalSmall', { today: analytics.today, week: analytics.week }),
+      badgeBg: 'bg-indigo-100',
+      badgeText: 'text-indigo-700',
+      accentColor: 'bg-indigo-100'
+    },
+    {
+      heading: t('gcms.stats.todayHeading'),
+      value: analyticsLoading ? '...' : analytics.today.toString(),
+      description: t('gcms.stats.todayDesc'),
+      small: t('gcms.stats.todaySmall'),
+      badgeBg: 'bg-green-100',
+      badgeText: 'text-green-700',
+      accentColor: 'bg-green-100'
+    },
+    {
+      heading: t('gcms.stats.weekHeading'),
+      value: analyticsLoading ? '...' : analytics.week.toString(),
+      description: t('gcms.stats.weekDesc'),
+      small: t('gcms.stats.weekSmall'),
+      badgeBg: 'bg-orange-100',
+      badgeText: 'text-orange-700',
+      accentColor: 'bg-orange-100'
+    },
+    {
+      heading: t('gcms.stats.monthHeading'),
+      value: analyticsLoading ? '...' : analytics.month.toString(),
+      description: t('gcms.stats.monthDesc'),
+      small: t('gcms.stats.monthSmall'),
+      badgeBg: 'bg-purple-100',
+      badgeText: 'text-purple-700',
+      accentColor: 'bg-purple-100'
+    }
+  ], [analytics, analyticsLoading, t])
+
   const avgScore = gcmsApplicants.length > 0
     ? Math.round(gcmsApplicants.reduce((sum, cv) => sum + (cv.score || 0), 0) / gcmsApplicants.length)
     : 0
@@ -100,64 +141,36 @@ function GCMSApplications({
         className="flex sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">GCMS Applications</h1>
-          <p className="text-gray-600 mt-1">Evaluate Gas Chromatography / Lab Specialist applicants</p>
-          <p className="text-sm text-gray-500">Avg score: {avgScore || 0}% · Avg groups hit: {avgGroups || 0}</p>
+          <h1 className="text-3xl font-bold text-gray-800">{t('gcms.title')}</h1>
+          <p className="text-gray-600 mt-1">{t('gcms.subtitle')}</p>
+          <p className="text-sm text-gray-500">
+            {t('gcms.avgLine', { score: avgScore || 0, groups: avgGroups || 0 })}
+          </p>
         </div>
         <div>
           <p className="text-md text-green-600 mt-1 flex items-center space-x-1">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            <span>Real-time updates enabled</span>
+            <span>{t('common.realTime')}</span>
           </p>
         </div>
       </motion.div>
 
       {/* Stats Cards */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-        <Statcard 
-          index={0}
-          heading="Total Applications" 
-          value={analyticsLoading ? "..." : analytics.total.toString()} 
-          description="Total GCMS applications received" 
-          smallStats={`${analytics.today} today · ${analytics.week} this week`} 
-          badgeBg="bg-indigo-100" 
-          badgeText="text-indigo-700" 
-          accentColor="bg-indigo-100" 
-          bgColor="bg-white" 
-        />
-        <Statcard 
-          index={1}
-          heading="Today" 
-          value={analyticsLoading ? "..." : analytics.today.toString()} 
-          description="Applications received today" 
-          smallStats="Last 24 hours" 
-          badgeBg="bg-green-100" 
-          badgeText="text-green-700" 
-          accentColor="bg-green-100" 
-          bgColor="bg-white" 
-        />
-        <Statcard 
-          index={2}
-          heading="This Week" 
-          value={analyticsLoading ? "..." : analytics.week.toString()} 
-          description="Applications this week" 
-          smallStats="Last 7 days" 
-          badgeBg="bg-orange-100" 
-          badgeText="text-orange-700" 
-          accentColor="bg-orange-100" 
-          bgColor="bg-white" 
-        />
-        <Statcard 
-          index={3}
-          heading="This Month" 
-          value={analyticsLoading ? "..." : analytics.month.toString()} 
-          description="Applications this month" 
-          smallStats="Last 30 days" 
-          badgeBg="bg-purple-100" 
-          badgeText="text-purple-700" 
-          accentColor="bg-purple-100" 
-          bgColor="bg-white" 
-        />
+        {stats.map((card, idx) => (
+          <Statcard
+            key={card.heading}
+            index={idx}
+            heading={card.heading}
+            value={card.value}
+            description={card.description}
+            smallStats={card.small}
+            badgeBg={card.badgeBg}
+            badgeText={card.badgeText}
+            accentColor={card.accentColor}
+            bgColor="bg-white"
+          />
+        ))}
       </div>
 
       {/* Search and Actions */}
@@ -188,12 +201,12 @@ function GCMSApplications({
               className="flex items-center space-x-2 px-6 py-1 bg-white border border-black/40 text-black rounded-lg hover:bg-gray-100 transition-colors shadow-md"
             >
               <BiSort size={18} />
-              <span className='text-black font-bold'>Filter</span>
+              <span className='text-black font-bold'>{t('common.filter')}</span>
             </button>
             {showFilter && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
                 <div className="p-2">
-                  <div className="text-xs font-semibold text-gray-500 px-2 py-1">Min Score</div>
+                  <div className="text-xs font-semibold text-gray-500 px-2 py-1">{t('common.minScore')}</div>
                   {[50, 60, 70, 80, 90].map(score => (
                     <button
                       key={score}
@@ -216,7 +229,7 @@ function GCMSApplications({
                       }}
                       className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 text-red-600"
                     >
-                      Clear Filter
+                      {t('common.clearFilter')}
                     </button>
                   )}
                 </div>
@@ -235,13 +248,13 @@ function GCMSApplications({
             >
               <BiSort size={18} />
               <span className='text-black font-bold'>
-                Sort {sortBy === 'score' ? 'Score' : 'Date'} {sortOrder === 'asc' ? '↑' : '↓'}
+                {t('common.sort')} {sortBy === 'score' ? t('maintable.columns.score') : t('common.date')} {sortOrder === 'asc' ? '↑' : '↓'}
               </span>
             </button>
             {showSort && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
                 <div className="p-2">
-                  <div className="text-xs font-semibold text-gray-500 px-2 py-1 mb-1">Sort By</div>
+                  <div className="text-xs font-semibold text-gray-500 px-2 py-1 mb-1">{t('common.sortBy')}</div>
                   <button
                     onClick={() => {
                       onSortChange('score', sortBy === 'score' && sortOrder === 'desc' ? 'asc' : 'desc')
@@ -251,7 +264,7 @@ function GCMSApplications({
                       sortBy === 'score' ? 'bg-blue-50 text-blue-700 font-semibold' : ''
                     }`}
                   >
-                    Score {sortBy === 'score' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    {t('maintable.columns.score')} {sortBy === 'score' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </button>
                   <button
                     onClick={() => {
@@ -262,7 +275,7 @@ function GCMSApplications({
                       sortBy === 'createdAt' ? 'bg-blue-50 text-blue-700 font-semibold' : ''
                     }`}
                   >
-                    Date {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    {t('common.date')} {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </button>
                 </div>
               </div>
@@ -277,7 +290,7 @@ function GCMSApplications({
             className="flex items-center space-x-2 px-6 py-1 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md"
           >
             <FiRefreshCw size={18} />
-            <span className='font-bold'>Refresh</span>
+            <span className='font-bold'>{t('common.refresh')}</span>
           </button>
         </div>
       </motion.div>

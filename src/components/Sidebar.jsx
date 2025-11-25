@@ -1,24 +1,26 @@
 import { FiLayout, FiHome, FiFileText, FiChevronDown, FiChevronRight, FiXCircle, FiLogOut, FiStar } from 'react-icons/fi'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useLanguage } from '../i18n/LanguageProvider'
 
 function Sidebar({ isOpen, setIsOpen, activeView, setActiveView, onLogout }) {
+  const { t } = useLanguage()
   const [applicationsExpanded, setApplicationsExpanded] = useState(true)
   
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: FiHome },
+  const menuItems = useMemo(() => [
+    { id: 'dashboard', label: t('sidebar.dashboard'), icon: FiHome },
     { 
       id: 'applications', 
-      label: 'Applications', 
+      label: t('sidebar.applications'), 
       icon: FiFileText,
       hasSubmenu: true,
       submenu: [
-        { id: 'shopify', label: 'Shopify' },
-        { id: 'gcms', label: 'GCMS' }
+        { id: 'shopify', label: t('sidebar.shopify') },
+        { id: 'gcms', label: t('sidebar.gcms') }
       ]
     },
-    { id: 'starred', label: 'Saved Applications', icon: FiStar },
-    { id: 'rejected', label: 'Rejected CVs', icon: FiXCircle },
-  ]
+    { id: 'starred', label: t('sidebar.saved'), icon: FiStar },
+    { id: 'rejected', label: t('sidebar.rejected'), icon: FiXCircle },
+  ], [t])
 
   return (
     <>
@@ -149,11 +151,11 @@ function Sidebar({ isOpen, setIsOpen, activeView, setActiveView, onLogout }) {
             <button
               onClick={onLogout}
               className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-red-600 hover:bg-red-50"
-              title={!isOpen ? 'Logout' : ''}
+              title={!isOpen ? t('sidebar.logout') : ''}
             >
               <FiLogOut size={20} />
               {isOpen && (
-                <span className="font-medium">Logout</span>
+                <span className="font-medium">{t('sidebar.logout')}</span>
               )}
             </button>
 
@@ -165,7 +167,7 @@ function Sidebar({ isOpen, setIsOpen, activeView, setActiveView, onLogout }) {
               >
                 {isOpen ? (
                   <>
-                    <span className="mr-2">Collapse</span>
+                    <span className="mr-2">{t('sidebar.collapse')}</span>
                     <svg
                       className="w-4 h-4"
                       fill="none"

@@ -11,6 +11,8 @@ import { GrValidate } from "react-icons/gr";
 import { FaCalendar } from "react-icons/fa";
 import { MdCreditScore } from "react-icons/md";
 import axiosInstance from "../api/axiosInstance";
+import { useLanguage } from "../i18n/LanguageProvider";
+
 
 
 function mapCvToApplicant(cv) {
@@ -105,11 +107,27 @@ const Maintable = memo(function Maintable({
   enableBulkActions = true,
   onBulkDeleteSelected = async () => { }
 }) {
+  const { t } = useLanguage()
   const [openSkillsId, setOpenSkillsId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [selectedIds, setSelectedIds] = useState([])
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const getJobCategory = (applicant) => {
+    if (!applicant) return null
+    if (applicant.jobCategory) return applicant.jobCategory
+    if (applicant.gcmsPositiveGroupsHit || applicant.gcmsMatchedGroups?.length) return 'GCMS'
+    if (applicant.shopifyExperienceMatches || applicant.matchedTechnicalSkills?.length) return 'SHOPIFY'
+    return null
+  }
+
+  const getTranslatedReason = (applicant) => {
+    if (!applicant) return ''
+    if (applicant.reason) {
+      return applicant.reason
+    }
+    return t('maintable.reason.noScore')
+  }
 
   // 👉 LOCAL STATE: keep a copy of the rows here
   const [applicants, setApplicants] = useState(() =>
@@ -197,28 +215,28 @@ const Maintable = memo(function Maintable({
   }, [cvData])
 
   const handleEmailClick = (email) => {
-    const subject = encodeURIComponent(
-      "Interview Invitation – QC / Lab Analyst Position"
-    )
+//     const subject = encodeURIComponent(
+//       "Interview Invitation – QC / Lab Analyst Position"
+//     )
 
-    const body = encodeURIComponent(
-      `Hello,
+//     const body = encodeURIComponent(
+//       `Hello,
   
-Thank you for applying for the QC / Lab Analyst position at Avoria. 
-We reviewed your profile and would like to invite you for an interview.
+// Thank you for applying for the QC / Lab Analyst position at Avoria. 
+// We reviewed your profile and would like to invite you for an interview.
                 
-📅 Date:  
-⏰ Time:  
-📍 Location: Google Meet (link will be shared)  
-⏳ Duration: 20–30 minutes
+// 📅 Date:  
+// ⏰ Time:  
+// 📍 Location: Google Meet (link will be shared)  
+// ⏳ Duration: 20–30 minutes
                 
-Please reply to this email with your availability, or let us know if you need to reschedule.
+// Please reply to this email with your availability, or let us know if you need to reschedule.
                 
-Looking forward to speaking with you.
+// Looking forward to speaking with you.
                 
-Best regards,
-Team Avoria`
-    )
+// Best regards,
+// Team Avoria`
+//     )
 
     window.open(
       `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}&body=${body}`,
@@ -252,14 +270,15 @@ Team Avoria`
     }
   }
 
-  const handleCopy = async (value, label) => {
+  const handleCopy = async (value, type) => {
     if (!value) return
+    const fieldKey = type === 'phone' ? 'phone' : 'email'
     try {
       await navigator.clipboard.writeText(value)
-      toast(`${label} copied`)
+      toast(t(`maintable.copy.${fieldKey}`))
     } catch (err) {
       console.error('Failed to copy text:', err)
-      toast.error(`Failed to copy ${label.toLowerCase()}`)
+      toast.error(t('maintable.copy.error', { field: t(`maintable.columns.${fieldKey}`) }))
     }
   }
 
@@ -290,9 +309,9 @@ Team Avoria`
   }
 
   const getStatusLabel = (score) => {
-    if (score !== null && score !== undefined && score >= 50) return "Accepted"
-    if (score !== null && score !== undefined) return "Rejected"
-    return "Not Evaluated"
+    if (score !== null && score !== undefined && score >= 50) return t('maintable.status.accepted')
+    if (score !== null && score !== undefined) return t('maintable.status.rejected')
+    return t('maintable.status.notEvaluated')
   }
 
   // 👉 LOCAL UPDATE: star toggle only changes that row in state
@@ -335,10 +354,14 @@ Team Avoria`
       ? applicants.find((a) => a.id === openSkillsId)
       : null
 
+  const translatedReason = selectedApplicant
+    ? getTranslatedReason(selectedApplicant)
+    : ''
+
   if (loading) {
     return (
       <div className="w-full overflow-hidden rounded-lg border border-border bg-card p-8">
-        <div className="text-center text-gray-500">Loading CVs...</div>
+        <div className="text-center text-gray-500">{t('maintable.loading')}</div>
       </div>
     )
   }
@@ -347,7 +370,7 @@ Team Avoria`
     return (
       <div className="w-full overflow-hidden rounded-lg border border-border bg-card p-8">
         <div className="text-center text-gray-500">
-          No CVs found.
+          {t('maintable.empty')}
         </div>
       </div>
     )
@@ -358,20 +381,20 @@ Team Avoria`
       {enableBulkActions && hasSelection && (
         <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-200 text-amber-900">
           <span className="text-sm font-medium">
-            {selectedIds.length} selected
+            {t('maintable.bulkBar.selected', { count: selectedIds.length })}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelectedIds([])}
               className="px-3 py-1 text-xs font-semibold text-amber-900 hover:text-amber-700"
             >
-              Clear
+              {t('common.clearSelection')}
             </button>
             <button
               onClick={openBulkModal}
               className="px-4 py-1 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700"
             >
-              Delete Selected
+              {t('common.deleteSelected')}
             </button>
           </div>
         </div>
@@ -381,11 +404,9 @@ Team Avoria`
           <div className="fixed inset-0 z-40 bg-black/40" />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
-              <h3 className="text-xl font-semibold text-gray-900">Delete Selected CVs</h3>
+              <h3 className="text-xl font-semibold text-gray-900">{t('maintable.bulkModal.title')}</h3>
               <p className="text-gray-600">
-                Are you sure you want to delete{' '}
-                <span className="font-semibold text-gray-900">{selectedIds.length}</span>{' '}
-                selected CV{selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.
+                {t('maintable.bulkModal.body', { count: selectedIds.length })}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -393,14 +414,14 @@ Team Avoria`
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
                   disabled={bulkDeleting}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleBulkDeleteConfirm}
                   className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
                   disabled={bulkDeleting}
                 >
-                  {bulkDeleting ? 'Deleting...' : 'Delete'}
+                  {bulkDeleting ? t('common.loading') : t('common.delete')}
                 </button>
               </div>
             </div>
@@ -426,49 +447,49 @@ Team Avoria`
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <RiAccountBoxFill className="h-4 w-4" />
-                  Name
+                  {t('maintable.columns.name')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  Email
+                  {t('maintable.columns.email')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
-                  Phone
+                  {t('maintable.columns.phone')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <FaCalendar className="h-4 w-4" />
-                  Applied
+                  {t('maintable.columns.applied')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <GrValidate className="h-4 w-4" />
-                  Job Title
+                  {t('maintable.columns.jobTitle')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <MdCreditScore className="h-4 w-4" />
-                  Score
+                  {t('maintable.columns.score')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <ImProfile className="h-4 w-4" />
-                  CV
+                  {t('maintable.columns.cv')}
                 </div>
               </th>
               <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
                   <MdCreditScore className="h-4 w-4" />
-                  Actions
+                  {t('maintable.columns.actions')}
                 </div>
               </th>
             </tr>
@@ -521,9 +542,9 @@ Team Avoria`
                       <span className="hover:underline truncate">{applicant.email}</span>
                     </button>
                     <button
-                      onClick={() => handleCopy(applicant.email, 'Email')}
+                      onClick={() => handleCopy(applicant.email, 'email')}
                       className="h-6 w-6 flex items-center justify-center rounded-md border border-border text-xs text-gray-500 hover:text-gray-800"
-                      title="Copy email"
+                      title={t('maintable.buttons.copyEmail')}
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
@@ -541,9 +562,9 @@ Team Avoria`
                       <span className="hover:underline truncate">{applicant.phone}</span>
                     </button>
                     <button
-                      onClick={() => handleCopy(applicant.phone, 'Phone')}
+                      onClick={() => handleCopy(applicant.phone, 'phone')}
                       className="h-6 w-6 flex items-center justify-center rounded-md border border-border text-xs text-gray-500 hover:text-gray-800"
-                      title="Copy phone"
+                      title={t('maintable.buttons.copyPhone')}
                     >
                       <Copy className="h-3.5 w-3.5" />
                     </button>
@@ -589,13 +610,13 @@ Team Avoria`
                           onClick={() => setOpenSkillsId(applicant.id)}
                           className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-muted-foreground hover:bg-muted/80 whitespace-nowrap"
                         >
-                          {applicant.allMatchedSkills.length} skills matched
+                          {t('maintable.messages.skillsMatched', { count: applicant.allMatchedSkills.length })}
                         </button>
                       )}
                     </div>
                   ) : (
                     <span className="text-[16px] text-gray-400">
-                      Not scored
+                      {t('maintable.messages.notScored')}
                     </span>
                   )}
                 </td>
@@ -610,11 +631,11 @@ Team Avoria`
                       className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
                     >
                       <FileText className="h-4 w-4 text-blue-500" />
-                      <span className="hover:underline">View CV</span>
+                      <span className="hover:underline">{t('maintable.buttons.viewCv')}</span>
                     </button>
                   ) : (
                     <span className="text-[16px] text-gray-400">
-                      No CV available
+                      {t('maintable.messages.noCv')}
                     </span>
                   )}
                 </td>
@@ -628,7 +649,7 @@ Team Avoria`
                           handleDownload(applicant.cvUrl, applicant.fileName)
                         }
                         className="h-8 w-8 rounded-md hover:bg-primary/10"
-                        title="Download CV"
+                        title={t('maintable.buttons.download')}
                       >
                         <FaDownload className="h-5 w-5" />
                       </button>
@@ -638,7 +659,7 @@ Team Avoria`
                       className={`h-8 w-8 rounded-md hover:bg-yellow-500/10 ${applicant.starred ? "bg-yellow-50" : ""
                         }`}
                       title={
-                        applicant.starred ? "Remove from saved" : "Save CV"
+                        applicant.starred ? t('maintable.buttons.unsave') : t('maintable.buttons.save')
                       }
                     >
                       <Star
@@ -652,7 +673,7 @@ Team Avoria`
                     <button
                       onClick={() => handleDeleteClick(applicant)}
                       className="h-8 w-8 rounded-md hover:bg-red-500/10"
-                      title="Delete"
+                      title={t('maintable.buttons.delete')}
                     >
                       <Trash2 className="h-5 w-5 text-red-500" />
                     </button>
@@ -675,32 +696,32 @@ Team Avoria`
             <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
               <div className="flex items-start justify-between mb-4">
                 <div className="space-y-3 flex-1">
-                  <h2 className="text-2xl font-semibold text-gray-800">
-                    Applicant Details
-                  </h2>
+                    <h2 className="text-2xl font-semibold text-gray-800">
+                      {t('maintable.modal.title')}
+                    </h2>
 
                   <div className="space-y-2">
                     <p className="text-lg font-medium text-gray-800">
                       {selectedApplicant.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <strong>Email:</strong> {selectedApplicant.email}
+                        <strong>{t('maintable.columns.email')}:</strong> {selectedApplicant.email}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <strong>Job Title:</strong> {selectedApplicant.jobTitle}
+                        <strong>{t('maintable.columns.jobTitle')}:</strong> {selectedApplicant.jobTitle}
                     </p>
                   </div>
 
                   {selectedApplicant.score !== null && selectedApplicant.score >= 50 &&
                     selectedApplicant.score !== undefined && (
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          Scoring Results
-                        </h3>
+                    <h3 className="text-lg font-semibold text-gray-800">
+                      {t('maintable.modal.scoring')}
+                    </h3>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">Score</p>
+                            <p className="text-sm text-gray-600 mb-1">{t('maintable.modal.score')}</p>
                             <span
                               className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getScoreClasses(
                                 selectedApplicant.score
@@ -710,7 +731,7 @@ Team Avoria`
                             </span>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-600 mb-1">Rank</p>
+                            <p className="text-sm text-gray-600 mb-1">{t('maintable.modal.rank')}</p>
                             {selectedApplicant.rank ? (
                               <span
                                 className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getRankClasses(
@@ -727,7 +748,7 @@ Team Avoria`
                           </div>
                           <div>
                             <p className="text-sm text-gray-600 mb-1">
-                              Status
+                              {t('maintable.modal.status')}
                             </p>
                             {selectedApplicant.score !== null && selectedApplicant.score >= 50 &&
                               selectedApplicant.score !== undefined ? (
@@ -746,13 +767,13 @@ Team Avoria`
                           </div>
                         </div>
 
-                        {selectedApplicant.reason && (
+                        {translatedReason && (
                           <div className="mt-3">
                             <p className="text-sm text-gray-600 mb-1">
-                              Reason
+                              {t('maintable.reasonLabel')}
                             </p>
-                            <p className="text-sm text-gray-800 bg-white p-2 rounded border">
-                              {selectedApplicant.reason}
+                            <p className="text-sm text-gray-800 bg-white p-2 rounded border whitespace-pre-line">
+                              {translatedReason}
                             </p>
                           </div>
                         )}
@@ -765,7 +786,7 @@ Team Avoria`
                         {selectedApplicant.matchedExperience?.length > 0 && (
                           <div>
                             <h3 className="text-md font-semibold text-gray-800 mb-2">
-                              Shopify Experience Skills (
+                            {t('maintable.sections.shopifyExperience')} (
                               {selectedApplicant.shopifyExperienceMatches ||
                                 selectedApplicant.matchedExperience.length}
                               )
@@ -792,7 +813,7 @@ Team Avoria`
                         {selectedApplicant.matchedTechnicalSkills?.length > 0 && (
                           <div>
                             <h3 className="text-md font-semibold text-gray-800 mb-2">
-                              Technical Skills (
+                            {t('maintable.sections.technical')} (
                               {selectedApplicant.technicalMatches ||
                                 selectedApplicant.matchedTechnicalSkills.length}
                               )
@@ -822,7 +843,7 @@ Team Avoria`
                     <div className="mt-4 space-y-3">
                       <div>
                         <h3 className="text-md font-semibold text-gray-800 mb-2">
-                          GCMS Positive Groups (
+                          {t('maintable.sections.gcmsGroups')} (
                           {selectedApplicant.gcmsPositiveGroupsHit ||
                             selectedApplicant.gcmsMatchedGroups.length}
                           )
@@ -849,10 +870,11 @@ Team Avoria`
                           return (
                             <div key={group}>
                               <h4 className="text-sm font-semibold text-gray-700 mb-1">
-                                Keywords noted for{" "}
-                                {group
-                                  .replace(/_/g, " ")
-                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+                                {t('maintable.sections.keywordsFor', {
+                                  group: group
+                                    .replace(/_/g, " ")
+                                    .replace(/\b\w/g, (l) => l.toUpperCase())
+                                })}
                               </h4>
                               <div className="flex flex-wrap gap-2">
                                 {keywordList
@@ -887,7 +909,7 @@ Team Avoria`
                   onClick={() => setOpenSkillsId(null)}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted bg-black text-white"
                 >
-                  Close
+                  {t('common.close')}
                 </button>
               </div>
             </div>
@@ -905,27 +927,25 @@ Team Avoria`
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
               <h3 className="text-xl font-semibold text-gray-900">
-                Delete CV
+                {t('maintable.deleteModal.title')}
               </h3>
               <p className="text-gray-600">
-                Are you sure you want to delete the CV for{" "}
-                <span className="font-semibold text-gray-900">
-                  {deleteTarget.name}
-                </span>
-                ? This action cannot be undone.
+                {t('maintable.deleteModal.body', {
+                  name: deleteTarget.name || '—'
+                })}
               </p>
               <div className="flex items-center justify-end gap-3">
                 <button
                   onClick={handleCancelDelete}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleConfirmDelete}
                   className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
                 >
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             </div>
