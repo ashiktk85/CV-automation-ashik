@@ -1,4 +1,4 @@
-import { FiLayout, FiHome, FiFileText, FiChevronDown, FiChevronRight, FiXCircle, FiLogOut } from 'react-icons/fi'
+import { FiLayout, FiHome, FiFileText, FiChevronDown, FiChevronRight, FiXCircle, FiLogOut, FiStar } from 'react-icons/fi'
 import { useState } from 'react'
 
 function Sidebar({ isOpen, setIsOpen, activeView, setActiveView, onLogout }) {
@@ -13,9 +13,10 @@ function Sidebar({ isOpen, setIsOpen, activeView, setActiveView, onLogout }) {
       hasSubmenu: true,
       submenu: [
         { id: 'shopify', label: 'Shopify' },
-        { id: 'starred', label: 'Saved' }
+        { id: 'gcms', label: 'GCMS' }
       ]
     },
+    { id: 'starred', label: 'Saved Applications', icon: FiStar },
     { id: 'rejected', label: 'Rejected CVs', icon: FiXCircle },
   ]
 

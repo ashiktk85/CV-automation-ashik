@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FiRefreshCw, FiCheckCircle } from 'react-icons/fi'
+import { FiRefreshCw, FiCheckCircle, FiTrash2 } from 'react-icons/fi'
 import { BiSort } from "react-icons/bi";
 import { motion } from 'framer-motion'
 import Statcard from './Statcard'
@@ -16,6 +16,8 @@ function RejectedCVs({
   newCVAdded,
   onToggleStar,
   onDelete,
+  onBulkDelete = () => Promise.resolve(),
+  onDeleteAll = () => Promise.resolve(),
   onSearch,
   searchQuery,
   onSortChange,
@@ -32,8 +34,11 @@ function RejectedCVs({
   const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [showFilter, setShowFilter] = useState(false)
   const [showSort, setShowSort] = useState(false)
+  const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false)
+  const [deleteAllLoading, setDeleteAllLoading] = useState(false)
 
   const rejectedCVs = cvData
+  const rowStartIndex = ((pagination?.page || 1) - 1) * (pagination?.limit || rejectedCVs.length || 12)
 
   useEffect(() => {
     if (newCVAdded) {
@@ -74,6 +79,21 @@ function RejectedCVs({
 
   const handleFilterScore = (score) => {
     onFilterChange(score === minScore ? null : score)
+  }
+
+  const handleDeleteAllClick = () => {
+    setDeleteAllModalOpen(true)
+  }
+
+  const handleConfirmDeleteAll = () => {
+    setDeleteAllLoading(true)
+    onDeleteAll()
+      .then(() => {
+        setDeleteAllModalOpen(false)
+        fetchAnalytics()
+      })
+      .catch(() => {})
+      .finally(() => setDeleteAllLoading(false))
   }
 
   return (
@@ -259,16 +279,25 @@ function RejectedCVs({
             )}
           </div>
 
-          <button
-            onClick={() => {
-              onRefresh()
-              fetchAnalytics()
-            }}
-            className="flex items-center space-x-2 px-6 py-1 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md"
-          >
-            <FiRefreshCw size={18} />
-            <span className='font-bold'>Refresh</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                onRefresh()
+                fetchAnalytics()
+              }}
+              className="flex items-center space-x-2 px-6 py-1 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors shadow-md"
+            >
+              <FiRefreshCw size={18} />
+              <span className='font-bold'>Refresh</span>
+            </button>
+            <button
+              onClick={handleDeleteAllClick}
+              className="flex items-center space-x-2 px-6 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md"
+            >
+              <FiTrash2 size={18} />
+              <span className='font-bold'>Delete All</span>
+            </button>
+          </div>
         </div>
       </motion.div>
 
@@ -290,6 +319,9 @@ function RejectedCVs({
         onPreview={handlePreview}
         onToggleStar={onToggleStar}
         onDelete={onDelete}
+        startIndex={rowStartIndex}
+        enableBulkActions
+        onBulkDeleteSelected={onBulkDelete}
       />
 
       {/* Pagination */}
@@ -308,6 +340,36 @@ function RejectedCVs({
         googleDriveLink={previewModal.googleDriveLink}
         fileName={previewModal.fileName}
       />
+
+      {deleteAllModalOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+              <h3 className="text-xl font-semibold text-gray-900">Delete All Rejected CVs</h3>
+              <p className="text-gray-600">
+                This will permanently delete every rejected CV. This action cannot be undone.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setDeleteAllModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
+                  disabled={deleteAllLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDeleteAll}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                  disabled={deleteAllLoading}
+                >
+                  {deleteAllLoading ? 'Deleting...' : 'Delete All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </motion.div>
   )
 }

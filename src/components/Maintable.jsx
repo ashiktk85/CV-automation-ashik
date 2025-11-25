@@ -2,7 +2,8 @@
 
 import { useState, useEffect, memo, useRef } from "react"
 import { motion } from "framer-motion"
-import { Mail, Phone, FileText, Trash2, Star } from "lucide-react"
+import { Mail, Phone, FileText, Trash2, Star, Copy } from "lucide-react"
+import { toast } from 'sonner'
 import { FaDownload } from "react-icons/fa6";
 import { ImProfile } from "react-icons/im";
 import { RiAccountBoxFill } from "react-icons/ri";
@@ -21,13 +22,40 @@ function mapCvToApplicant(cv) {
       ? `${baseURL}${cv.file.localFilePath}`
       : null;
 
+  const gcmsMatchedGroups = Array.isArray(cv.gcmsMatchedGroups) ? cv.gcmsMatchedGroups : []
+  const rawGcmsKeywords = cv.gcmsMatchedKeywords && typeof cv.gcmsMatchedKeywords === 'object'
+    ? cv.gcmsMatchedKeywords
+    : {}
+  const normalizedGcmsKeywords =
+    rawGcmsKeywords instanceof Map ? Object.fromEntries(rawGcmsKeywords) : rawGcmsKeywords
+  const gcmsKeywordsFlat = Object.values(normalizedGcmsKeywords || {}).reduce((acc, value) => {
+    if (Array.isArray(value)) {
+      return acc.concat(value)
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+      acc.push(value)
+    }
+    return acc
+  }, [])
+
   const allMatchedSkills = [
     ...(cv.matchedExperience || []),
     ...(cv.matchedTechnicalSkills || []),
+    ...gcmsMatchedGroups,
+    ...gcmsKeywordsFlat,
   ];
 
+  const inferCategory = () => {
+    if (cv.jobCategory) return cv.jobCategory
+    if (cv.evaluationRole) return cv.evaluationRole
+    const title = (cv.jobTitle || '').toLowerCase()
+    if (title.includes('shopify')) return 'SHOPIFY'
+    if (title.includes('gcms') || title.includes('gc/ms') || title.includes('lab')) return 'GCMS'
+    return null
+  }
+
   return {
-    id: cv._id || cv.id,
+    id: (cv._id || cv.id)?.toString(),
     name: cv.fullName || "N/A",
     email: cv.email || "N/A",
     phone: cv.phoneNumber || "N/A",
@@ -43,24 +71,94 @@ function mapCvToApplicant(cv) {
     matchedTechnicalSkills: cv.matchedTechnicalSkills || [],
     allMatchedSkills,
     reason: cv.reason || null,
+    jobCategory: inferCategory(),
+    gcmsPositiveGroupsHit: cv.gcmsPositiveGroupsHit ?? null,
+    gcmsMinPositiveGroupsRequired: cv.gcmsMinPositiveGroupsRequired ?? null,
+    gcmsMatchedGroups,
+    gcmsMatchedKeywords: normalizedGcmsKeywords,
     starred: !!cv.starred,
   };
+}
+
+function formatAppliedDate(value) {
+  if (!value) return '--';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(new Date(value));
+  } catch (error) {
+    return '--';
+  }
 }
 
 const Maintable = memo(function Maintable({
   cvData = [],
   loading = false,
   onPreview,
-  onToggleStar = () => {},
-  onDelete = () => {},
+  onToggleStar = () => { },
+  onDelete = () => { },
+  startIndex = 0,
+  enableBulkActions = true,
+  onBulkDeleteSelected = async () => { }
 }) {
   const [openSkillsId, setOpenSkillsId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkModalOpen, setBulkModalOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   // 👉 LOCAL STATE: keep a copy of the rows here
   const [applicants, setApplicants] = useState(() =>
     cvData.map(mapCvToApplicant)
   )
+  useEffect(() => {
+    setSelectedIds([])
+  }, [cvData])
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedIds(applicants.map((a) => a.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const handleRowSelect = (id, checked) => {
+    setSelectedIds((prev) => {
+      if (checked) {
+        return [...new Set([...prev, id])]
+      }
+      return prev.filter((selectedId) => selectedId !== id)
+    })
+  }
+
+  const openBulkModal = () => {
+    if (selectedIds.length === 0) return
+    setBulkModalOpen(true)
+  }
+
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedIds.length === 0) return
+    setBulkDeleting(true)
+    try {
+      await onBulkDeleteSelected(selectedIds)
+      setSelectedIds([])
+      setBulkModalOpen(false)
+    } catch (error) {
+      console.error('Bulk delete failed:', error)
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  const allSelected =
+    applicants.length > 0 && selectedIds.length === applicants.length
+  const hasSelection = selectedIds.length > 0
+
 
   // Track if we're doing a local update to prevent sync
   const isLocalUpdateRef = useRef(false)
@@ -80,11 +178,11 @@ const Maintable = memo(function Maintable({
 
     const currentIds = new Set(cvData.map(cv => cv._id || cv.id))
     const prevIds = prevCvDataIdsRef.current
-    
+
     // Only sync if there's a structural change:
     // - Different length (items added/removed)
     // - Different IDs (items added/removed)
-    const hasStructuralChange = 
+    const hasStructuralChange =
       prevCvDataLengthRef.current !== cvData.length ||
       prevIds.size !== currentIds.size ||
       [...prevIds].some(id => !currentIds.has(id)) ||
@@ -151,6 +249,17 @@ Team Avoria`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+    }
+  }
+
+  const handleCopy = async (value, label) => {
+    if (!value) return
+    try {
+      await navigator.clipboard.writeText(value)
+      toast(`${label} copied`)
+    } catch (err) {
+      console.error('Failed to copy text:', err)
+      toast.error(`Failed to copy ${label.toLowerCase()}`)
     }
   }
 
@@ -238,7 +347,7 @@ Team Avoria`
     return (
       <div className="w-full overflow-hidden rounded-lg border border-border bg-card p-8">
         <div className="text-center text-gray-500">
-          No CVs found. Upload a CV to get started.
+          No CVs found.
         </div>
       </div>
     )
@@ -246,56 +355,119 @@ Team Avoria`
 
   return (
     <div className="w-full overflow-hidden rounded-lg border border-border bg-card relative">
+      {enableBulkActions && hasSelection && (
+        <div className="flex items-center justify-between px-4 py-3 bg-amber-50 border-b border-amber-200 text-amber-900">
+          <span className="text-sm font-medium">
+            {selectedIds.length} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-1 text-xs font-semibold text-amber-900 hover:text-amber-700"
+            >
+              Clear
+            </button>
+            <button
+              onClick={openBulkModal}
+              className="px-4 py-1 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700"
+            >
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
+      {bulkModalOpen && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+              <h3 className="text-xl font-semibold text-gray-900">Delete Selected CVs</h3>
+              <p className="text-gray-600">
+                Are you sure you want to delete{' '}
+                <span className="font-semibold text-gray-900">{selectedIds.length}</span>{' '}
+                selected CV{selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.
+              </p>
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setBulkModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors"
+                  disabled={bulkDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkDeleteConfirm}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+                  disabled={bulkDeleting}
+                >
+                  {bulkDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       {/* TABLE */}
       <div className="overflow-x-auto relative z-10">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse text-sm">
           <thead>
-            <tr className="border-b border-border bg-gray-100">
-              <th className="px-6 py-4 text-left text-md font-semibold">
+            <tr className="border-b border-border bg-gray-100 text-gray-600">
+              {enableBulkActions && (
+                <th className="px-3 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-400"
+                    checked={allSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    aria-label="Select all"
+                  />
+                </th>
+              )}
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <RiAccountBoxFill className="h-5 w-5" />
+                  <RiAccountBoxFill className="h-4 w-4" />
                   Name
                 </div>
               </th>
-              <th className="px-6 py-4 text-left text-md font-semibold">
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
+                  <Mail className="h-4 w-4" />
                   Email
                 </div>
               </th>
-              <th className="px-6 py-4 text-left text-md font-semibold">
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <Phone className="h-5 w-5" />
+                  <Phone className="h-4 w-4" />
                   Phone
                 </div>
               </th>
-              <th className="px-6 py-4 text-left text-md font-semibold">
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <FaCalendar className="h-5 w-5" />
+                  <FaCalendar className="h-4 w-4" />
                   Applied
                 </div>
               </th>
-              <th className="px-6 py-4 text-left text-md font-semibold">
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <GrValidate className="h-5 w-5" />
+                  <GrValidate className="h-4 w-4" />
                   Job Title
                 </div>
               </th>
-              <th className="px-6 py-4 text-left text-md font-semibold">
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <MdCreditScore className="h-5 w-5" />
+                  <MdCreditScore className="h-4 w-4" />
                   Score
                 </div>
               </th>
-              <th className="px-6 py-4 text-left text-md font-semibold">
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <ImProfile className="h-5 w-5" />
+                  <ImProfile className="h-4 w-4" />
                   CV
                 </div>
               </th>
-              <th className="px-6 py-4 text-left text-md font-semibold">
+              <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
                 <div className="flex items-center gap-2">
-                  <MdCreditScore className="h-5 w-5" />
+                  <MdCreditScore className="h-4 w-4" />
                   Actions
                 </div>
               </th>
@@ -309,65 +481,98 @@ Team Avoria`
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
-                className={`border-b border-border hover:bg-muted/30 transition-colors ${
-                  index === applicants.length - 1 ? "border-b-0" : ""
-                }`}
+                className={`border-b border-border hover:bg-muted/30 transition-colors text-sm ${index === applicants.length - 1 ? "border-b-0" : ""
+                  }`}
               >
+                {enableBulkActions && (
+                  <td className="px-3 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-400"
+                      checked={selectedIds.includes(applicant.id)}
+                      onChange={(e) =>
+                        handleRowSelect(applicant.id, e.target.checked)
+                      }
+                      aria-label={`Select ${applicant.name}`}
+                    />
+                  </td>
+                )}
                 {/* NAME */}
-                <td className="px-6 py-1">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-3 text-muted-foreground">
-                    <div className="h-10 w-10 flex items-center justify-center rounded-full bg-primary/10 text-primary font-medium text-lg">
-                      {index + 1}
+                    <div className="h-8 w-8 flex items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                      {startIndex + index + 1}
                     </div>
 
-                    <span className="text-[15px] text-muted-foreground">
+                    <span className="text-sm text-muted-foreground font-medium truncate max-w-[150px]">
                       {applicant.name}
                     </span>
                   </div>
                 </td>
 
                 {/* EMAIL */}
-                <td className="px-6 py-2">
-                  <button
-                    onClick={() => handleEmailClick(applicant.email)}
-                    className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
-                  >
-                    <Mail className="h-4 w-4 text-red-500" />
-                    <span className="hover:underline">{applicant.email}</span>
-                  </button>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEmailClick(applicant.email)}
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground truncate max-w-[180px]"
+                    >
+                      <Mail className="h-3.5 w-3.5 text-red-500" />
+                      <span className="hover:underline truncate">{applicant.email}</span>
+                    </button>
+                    <button
+                      onClick={() => handleCopy(applicant.email, 'Email')}
+                      className="h-6 w-6 flex items-center justify-center rounded-md border border-border text-xs text-gray-500 hover:text-gray-800"
+                      title="Copy email"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
 
                 {/* PHONE */}
-                <td className="px-6 py-2">
-                  <button
-                    onClick={() => handlePhoneClick(applicant.phone)}
-                    className="flex items-center gap-2 text-[16px] text-muted-foreground hover:text-foreground"
-                  >
-                    <Phone className="h-4 w-4 text-green-500" />
-                    <span className="hover:underline">{applicant.phone}</span>
-                  </button>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handlePhoneClick(applicant.phone)}
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground truncate max-w-[130px]"
+                    >
+                      <Phone className="h-3.5 w-3.5 text-green-500" />
+                      <span className="hover:underline truncate">{applicant.phone}</span>
+                    </button>
+                    <button
+                      onClick={() => handleCopy(applicant.phone, 'Phone')}
+                      className="h-6 w-6 flex items-center justify-center rounded-md border border-border text-xs text-gray-500 hover:text-gray-800"
+                      title="Copy phone"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
 
                 {/* DATE */}
-                <td className="px-6 py-2 text-[16px] text-muted-foreground">
-                  {new Date(applicant.appliedDate).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+                  {formatAppliedDate(applicant.appliedDate)}
                 </td>
 
                 {/* JOB TITLE */}
-                <td className="px-6 py-2">
-                  <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold bg-blue-100 text-blue-800">
+                <td className="px-4 py-3">
+                  <span className="
+                      inline-flex items-center gap-2 rounded-full px-3 py-1 
+                      bg-blue-100 text-blue-800
+                      text-xs font-medium
+                      max-w-[120px] 
+                      truncate
+                    ">
                     {applicant.jobTitle}
                   </span>
                 </td>
 
+
                 {/* SCORE */}
-                <td className="px-6 py-2">
-                  {applicant.score !== null &&
-                  applicant.score !== undefined ? (
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {applicant.score !== null && applicant.score >= 50 &&
+                    applicant.score !== undefined ? (
                     <div className="flex gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
@@ -382,7 +587,7 @@ Team Avoria`
                         <button
                           type="button"
                           onClick={() => setOpenSkillsId(applicant.id)}
-                          className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-muted-foreground hover:bg-muted/80"
+                          className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-[13px] font-semibold text-muted-foreground hover:bg-muted/80 whitespace-nowrap"
                         >
                           {applicant.allMatchedSkills.length} skills matched
                         </button>
@@ -396,7 +601,7 @@ Team Avoria`
                 </td>
 
                 {/* CV */}
-                <td className="px-6 py-2">
+                <td className="px-4 py-3 whitespace-nowrap">
                   {applicant.cvUrl ? (
                     <button
                       onClick={() =>
@@ -415,7 +620,7 @@ Team Avoria`
                 </td>
 
                 {/* ACTIONS */}
-                <td className="px-6 py-2">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     {applicant.cvUrl && (
                       <button
@@ -430,19 +635,17 @@ Team Avoria`
                     )}
                     <button
                       onClick={() => handleStarClick(applicant.id)}
-                      className={`h-8 w-8 rounded-md hover:bg-yellow-500/10 ${
-                        applicant.starred ? "bg-yellow-50" : ""
-                      }`}
+                      className={`h-8 w-8 rounded-md hover:bg-yellow-500/10 ${applicant.starred ? "bg-yellow-50" : ""
+                        }`}
                       title={
                         applicant.starred ? "Remove from saved" : "Save CV"
                       }
                     >
                       <Star
-                        className={`h-5 w-5 ${
-                          applicant.starred
+                        className={`h-5 w-5 ${applicant.starred
                             ? "text-yellow-500"
                             : "text-gray-400"
-                        } items-center justify-center`}
+                          } items-center justify-center`}
                         fill={applicant.starred ? "#facc15" : "none"}
                       />
                     </button>
@@ -488,7 +691,7 @@ Team Avoria`
                     </p>
                   </div>
 
-                  {selectedApplicant.score !== null &&
+                  {selectedApplicant.score !== null && selectedApplicant.score >= 50 &&
                     selectedApplicant.score !== undefined && (
                       <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-3">
                         <h3 className="text-lg font-semibold text-gray-800">
@@ -526,8 +729,8 @@ Team Avoria`
                             <p className="text-sm text-gray-600 mb-1">
                               Status
                             </p>
-                            {selectedApplicant.score !== null &&
-                            selectedApplicant.score !== undefined ? (
+                            {selectedApplicant.score !== null && selectedApplicant.score >= 50 &&
+                              selectedApplicant.score !== undefined ? (
                               <span
                                 className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${getStatusClasses(
                                   selectedApplicant.score
@@ -558,59 +761,114 @@ Team Avoria`
 
                   {(selectedApplicant.matchedExperience?.length > 0 ||
                     selectedApplicant.matchedTechnicalSkills?.length > 0) && (
-                    <div className="mt-4 space-y-3">
-                      {selectedApplicant.matchedExperience?.length > 0 && (
-                        <div>
-                          <h3 className="text-md font-semibold text-gray-800 mb-2">
-                            Shopify Experience Skills (
-                            {selectedApplicant.shopifyExperienceMatches ||
-                              selectedApplicant.matchedExperience.length}
-                            )
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedApplicant.matchedExperience.map(
-                              (skill, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-[13px] font-medium text-blue-800"
-                                >
-                                  {skill
-                                    .replace(/_/g, " ")
-                                    .replace(/\b\w/g, (l) =>
-                                      l.toUpperCase()
-                                    )}
-                                </span>
+                      <div className="mt-4 space-y-3">
+                        {selectedApplicant.matchedExperience?.length > 0 && (
+                          <div>
+                            <h3 className="text-md font-semibold text-gray-800 mb-2">
+                              Shopify Experience Skills (
+                              {selectedApplicant.shopifyExperienceMatches ||
+                                selectedApplicant.matchedExperience.length}
                               )
-                            )}
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedApplicant.matchedExperience.map(
+                                (skill, i) => (
+                                  <span
+                                    key={i}
+                                    className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-[13px] font-medium text-blue-800"
+                                  >
+                                    {skill
+                                      .replace(/_/g, " ")
+                                      .replace(/\b\w/g, (l) =>
+                                        l.toUpperCase()
+                                      )}
+                                  </span>
+                                )
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {selectedApplicant.matchedTechnicalSkills?.length > 0 && (
-                        <div>
-                          <h3 className="text-md font-semibold text-gray-800 mb-2">
-                            Technical Skills (
-                            {selectedApplicant.technicalMatches ||
-                              selectedApplicant.matchedTechnicalSkills.length}
-                            )
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedApplicant.matchedTechnicalSkills.map(
-                              (skill, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-[13px] font-medium text-green-800"
-                                >
-                                  {skill
-                                    .replace(/_/g, " ")
-                                    .replace(/\b\w/g, (l) =>
-                                      l.toUpperCase()
-                                    )}
-                                </span>
+                        {selectedApplicant.matchedTechnicalSkills?.length > 0 && (
+                          <div>
+                            <h3 className="text-md font-semibold text-gray-800 mb-2">
+                              Technical Skills (
+                              {selectedApplicant.technicalMatches ||
+                                selectedApplicant.matchedTechnicalSkills.length}
                               )
-                            )}
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedApplicant.matchedTechnicalSkills.map(
+                                (skill, i) => (
+                                  <span
+                                    key={i}
+                                    className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-[13px] font-medium text-green-800"
+                                  >
+                                    {skill
+                                      .replace(/_/g, " ")
+                                      .replace(/\b\w/g, (l) =>
+                                        l.toUpperCase()
+                                      )}
+                                  </span>
+                                )
+                              )}
+                            </div>
                           </div>
+                        )}
+                      </div>
+                    )}
+
+                  {selectedApplicant.gcmsMatchedGroups?.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <div>
+                        <h3 className="text-md font-semibold text-gray-800 mb-2">
+                          GCMS Positive Groups (
+                          {selectedApplicant.gcmsPositiveGroupsHit ||
+                            selectedApplicant.gcmsMatchedGroups.length}
+                          )
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedApplicant.gcmsMatchedGroups.map((group, idx) => (
+                            <span
+                              key={`${group}-${idx}`}
+                              className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-[13px] font-medium text-purple-800"
+                            >
+                              {group
+                                .replace(/_/g, " ")
+                                .replace(/\b\w/g, (l) => l.toUpperCase())}
+                            </span>
+                          ))}
                         </div>
+                      </div>
+
+                      {Object.entries(selectedApplicant.gcmsMatchedKeywords || {}).map(
+                        ([group, keywords]) => {
+                          const keywordList = Array.isArray(keywords)
+                            ? keywords
+                            : [keywords]
+                          return (
+                            <div key={group}>
+                              <h4 className="text-sm font-semibold text-gray-700 mb-1">
+                                Keywords noted for{" "}
+                                {group
+                                  .replace(/_/g, " ")
+                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+                              </h4>
+                              <div className="flex flex-wrap gap-2">
+                                {keywordList
+                                  .filter(Boolean)
+                                  .map((keyword, idx) => (
+                                    <span
+                                      key={`${group}-${keyword}-${idx}`}
+                                      className="inline-flex items-center rounded-full bg-indigo-100 px-3 py-1 text-[12px] font-medium text-indigo-800"
+                                    >
+                                      {keyword}
+                                    </span>
+                                  ))}
+                              </div>
+                            </div>
+                          )
+                        }
                       )}
                     </div>
                   )}

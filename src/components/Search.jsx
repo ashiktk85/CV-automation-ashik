@@ -1,24 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 
 export default function SearchBar({ onSearch, value = '' }) {
-  const [searchValue, setSearchValue] = useState(value)
+  const [inputValue, setInputValue] = useState(value)
+
+  useEffect(() => {
+    setInputValue(value)
+  }, [value])
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSearch(searchValue)
+    onSearch?.(inputValue)
   }
 
   const handleChange = (e) => {
-    const newValue = e.target.value
-    setSearchValue(newValue)
-    // Debounce: call onSearch after user stops typing for 500ms
-    if (onSearch) {
-      clearTimeout(window.searchTimeout)
-      window.searchTimeout = setTimeout(() => {
-        onSearch(newValue)
-      }, 500)
-    }
+    setInputValue(e.target.value)
   }
 
   return (
@@ -33,7 +29,7 @@ export default function SearchBar({ onSearch, value = '' }) {
         <input
           type="text"
           name="search"
-          value={searchValue}
+          value={inputValue}
           onChange={handleChange}
           placeholder="Search name or email..."
           className="flex-1 px-4 py-1 outline-none text-gray-700"

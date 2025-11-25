@@ -16,6 +16,7 @@ function ShopifyApplications({
   newCVAdded,
   onToggleStar,
   onDelete,
+  onBulkDelete,
   onSearch,
   searchQuery,
   onSortChange,
@@ -34,6 +35,7 @@ function ShopifyApplications({
   const [showSort, setShowSort] = useState(false)
 
   const shopifyApplicants = cvData
+  const rowStartIndex = ((pagination?.page || 1) - 1) * (pagination?.limit || shopifyApplicants.length || 12)
 
   useEffect(() => {
     if (newCVAdded) {
@@ -297,6 +299,9 @@ function ShopifyApplications({
         onPreview={handlePreview}
         onToggleStar={onToggleStar}
         onDelete={onDelete}
+        startIndex={rowStartIndex}
+        enableBulkActions
+        onBulkDeleteSelected={onBulkDelete}
       />
 
       {/* Pagination */}

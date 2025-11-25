@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import ShopifyApplications from './components/ShopifyApplications'
+import GCMSApplications from './components/GCMSApplications'
 import RejectedCVs from './components/RejectedCVs'
 import SavedApplications from './components/SavedApplications'
 import Login from './pages/Login'
@@ -35,8 +36,9 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [newCVAdded, setNewCVAdded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [minScore, setMinScore] = useState(null)
-  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortBy, setSortBy] = useState('score')
   const [sortOrder, setSortOrder] = useState('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState(null)
@@ -46,7 +48,7 @@ function App() {
     cacheRef.current = {}
   }, [])
 
-  const fetchCVData = useCallback((view, search = '', score = null, sort = 'createdAt', order = 'desc', page = 1) => {
+  const fetchCVData = useCallback((view, search = '', score = null, sort = 'score', order = 'desc', page = 1) => {
     const cacheKey = JSON.stringify({ view, search, score, sort, order, page })
     const cachedEntry = cacheRef.current[cacheKey]
 
@@ -66,6 +68,8 @@ function App() {
       endpoint = '/api/cv/accepted'
     } else if (view === 'shopify') {
       endpoint = '/api/cv/shopify'
+    } else if (view === 'gcms') {
+      endpoint = '/api/cv/gcms'
     } else if (view === 'rejected') {
       endpoint = '/api/cv/rejected'
     } else if (view === 'starred') {
@@ -111,8 +115,9 @@ function App() {
   // Reset filters when view changes
   useEffect(() => {
     setSearchQuery('')
+    setSearchInput('')
     setMinScore(null)
-    setSortBy('createdAt')
+    setSortBy('score')
     setSortOrder('desc')
     setCurrentPage(1)
   }, [activeView])
@@ -121,6 +126,10 @@ function App() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, minScore, sortBy, sortOrder])
+  const handleSearchSubmit = useCallback((value) => {
+    setSearchInput(value)
+    setSearchQuery(value)
+  }, [])
 
   // Fetch data when view, search, sort, filter, or page changes
   useEffect(() => {
@@ -156,6 +165,10 @@ function App() {
           // Show if rejected (score < 50 or no score)
           shouldShow = (cv.score !== null && cv.score !== undefined && cv.score < 50) ||
                       (cv.score === null || cv.score === undefined)
+        } else if (activeView === 'gcms') {
+          shouldShow =
+            cv.jobCategory === 'GCMS' ||
+            (!!cv.jobTitle && /(gc[\s-]*ms|gc\/ms|lab specialist|chromatography)/i.test(cv.jobTitle))
         } else if (activeView === 'starred') {
           shouldShow = cv.starred === true
         }
@@ -226,6 +239,43 @@ function App() {
       })
   }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData, invalidateCache])
 
+  const handleBulkDelete = useCallback((ids = []) => {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return Promise.resolve()
+    }
+
+    const normalizedIds = ids.map(id => id.toString())
+
+    setCvData(prev => prev.filter(cv => !normalizedIds.includes((cv._id || cv.id)?.toString())))
+
+    return axiosInstance.delete('/api/cv/bulk', { data: { ids } })
+      .then(() => {
+        toast.success(`Deleted ${ids.length} CV(s)`)
+        invalidateCache()
+      })
+      .catch(err => {
+        console.error('Error bulk deleting CVs:', err)
+        toast.error('Failed to delete selected CVs')
+        fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
+      })
+  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData, invalidateCache])
+
+  const handleDeleteAllRejected = useCallback(() => {
+    return axiosInstance.delete('/api/cv/rejected/all')
+      .then(response => {
+        const deletedCount = response?.data?.deleted || 0
+        toast.success(deletedCount ? `Deleted ${deletedCount} rejected CV(s)` : 'No rejected CVs to delete')
+        invalidateCache()
+        if (activeView === 'rejected') {
+          fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
+        }
+      })
+      .catch(err => {
+        console.error('Error deleting rejected CVs:', err)
+        toast.error('Failed to delete rejected CVs')
+      })
+  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData, invalidateCache])
+
   const handlePageChange = useCallback((page) => {
     setCurrentPage(page)
   }, [])
@@ -287,8 +337,9 @@ function App() {
                 newCVAdded={newCVAdded}
                 onToggleStar={handleToggleStar}
                 onDelete={handleDeleteCv}
-                onSearch={setSearchQuery}
-                searchQuery={searchQuery}
+                onBulkDelete={handleBulkDelete}
+                onSearch={handleSearchSubmit}
+                searchQuery={searchInput}
                 onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
                 onFilterChange={(score) => setMinScore(score)}
                 minScore={minScore}
@@ -306,8 +357,29 @@ function App() {
                 newCVAdded={newCVAdded}
                 onToggleStar={handleToggleStar}
                 onDelete={handleDeleteCv}
-                onSearch={setSearchQuery}
-                searchQuery={searchQuery}
+                onBulkDelete={handleBulkDelete}
+                onSearch={handleSearchSubmit}
+                searchQuery={searchInput}
+                onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
+                onFilterChange={(score) => setMinScore(score)}
+                minScore={minScore}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                pagination={pagination}
+                onPageChange={handlePageChange}
+              />
+            )}
+            {activeView === 'gcms' && (
+              <GCMSApplications 
+                cvData={cvData} 
+                loading={loading} 
+                onRefresh={() => fetchCVData('gcms', searchQuery, minScore, sortBy, sortOrder, currentPage)} 
+                newCVAdded={newCVAdded}
+                onToggleStar={handleToggleStar}
+                onDelete={handleDeleteCv}
+                onBulkDelete={handleBulkDelete}
+                onSearch={handleSearchSubmit}
+                searchQuery={searchInput}
                 onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
                 onFilterChange={(score) => setMinScore(score)}
                 minScore={minScore}
@@ -325,8 +397,10 @@ function App() {
                 newCVAdded={newCVAdded}
                 onToggleStar={handleToggleStar}
                 onDelete={handleDeleteCv}
-                onSearch={setSearchQuery}
-                searchQuery={searchQuery}
+                onBulkDelete={handleBulkDelete}
+                onDeleteAll={handleDeleteAllRejected}
+                onSearch={handleSearchSubmit}
+                searchQuery={searchInput}
                 onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
                 onFilterChange={(score) => setMinScore(score)}
                 minScore={minScore}
@@ -344,8 +418,9 @@ function App() {
                 newCVAdded={newCVAdded}
                 onToggleStar={handleToggleStar}
                 onDelete={handleDeleteCv}
-                onSearch={setSearchQuery}
-                searchQuery={searchQuery}
+                onBulkDelete={handleBulkDelete}
+                onSearch={handleSearchSubmit}
+                searchQuery={searchInput}
                 onSortChange={(sort, order) => { setSortBy(sort); setSortOrder(order); }}
                 onFilterChange={(score) => setMinScore(score)}
                 minScore={minScore}

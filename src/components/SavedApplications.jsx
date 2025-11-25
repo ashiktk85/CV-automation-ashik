@@ -16,6 +16,7 @@ function SavedApplications({
   newCVAdded,
   onToggleStar,
   onDelete,
+  onBulkDelete,
   onSearch,
   searchQuery,
   onSortChange,
@@ -34,6 +35,7 @@ function SavedApplications({
   const [showSort, setShowSort] = useState(false)
 
   const savedApplicants = cvData
+  const rowStartIndex = ((pagination?.page || 1) - 1) * (pagination?.limit || savedApplicants.length || 12)
 
   useEffect(() => {
     if (newCVAdded) {
@@ -288,6 +290,9 @@ function SavedApplications({
         onPreview={handlePreview}
         onToggleStar={onToggleStar}
         onDelete={onDelete}
+        startIndex={rowStartIndex}
+        enableBulkActions
+        onBulkDeleteSelected={onBulkDelete}
       />
 
       {/* Pagination */}
