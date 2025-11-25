@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
@@ -22,6 +22,8 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
+const CACHE_TTL = 60 * 1000 // 1 minute cache
+
 function App() {
   const navigate = useNavigate()
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -38,8 +40,23 @@ function App() {
   const [sortOrder, setSortOrder] = useState('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState(null)
+  const cacheRef = useRef({})
+
+  const invalidateCache = useCallback(() => {
+    cacheRef.current = {}
+  }, [])
 
   const fetchCVData = useCallback((view, search = '', score = null, sort = 'createdAt', order = 'desc', page = 1) => {
+    const cacheKey = JSON.stringify({ view, search, score, sort, order, page })
+    const cachedEntry = cacheRef.current[cacheKey]
+
+    if (cachedEntry && Date.now() - cachedEntry.timestamp < CACHE_TTL) {
+      setCvData(cachedEntry.data)
+      setPagination(cachedEntry.pagination)
+      setLoading(false)
+      return Promise.resolve()
+    }
+
     // Only set loading when explicitly fetching from backend (not for star/delete operations)
     setLoading(true)
     
@@ -67,12 +84,21 @@ function App() {
     const queryString = params.toString()
     const fullUrl = queryString ? `${endpoint}?${queryString}` : endpoint
     
-    axiosInstance.get(fullUrl)
+    return axiosInstance.get(fullUrl)
       .then(response => {
         const data = response.data
         if (data.success) {
-          setCvData(data.data || [])
-          setPagination(data.pagination || null)
+          const normalizedData = data.data || []
+          const normalizedPagination = data.pagination || null
+
+          setCvData(normalizedData)
+          setPagination(normalizedPagination)
+
+          cacheRef.current[cacheKey] = {
+            data: normalizedData,
+            pagination: normalizedPagination,
+            timestamp: Date.now()
+          }
         }
         setLoading(false)
       })
@@ -135,6 +161,7 @@ function App() {
         }
         
         if (shouldShow) {
+          invalidateCache()
           // Add the new CV to the existing list
           setCvData(prevData => {
             // Check if CV already exists (prevent duplicates) - MongoDB uses _id
@@ -153,6 +180,7 @@ function App() {
           setTimeout(() => setNewCVAdded(false), 3000)
         } else {
           // CV doesn't match current view filter, refresh to get updated data
+          invalidateCache()
           fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
         }
       }
@@ -164,7 +192,7 @@ function App() {
       socket.off('disconnect')
       socket.off('newCVUploaded')
     }
-  }, [activeView, fetchCVData])
+  }, [activeView, fetchCVData, invalidateCache])
 
   const handleToggleStar = useCallback((id, starred) => {
     // Don't update parent state - let Maintable handle it locally
@@ -172,6 +200,7 @@ function App() {
     axiosInstance.patch(`/api/cv/${id}/starred`, { starred })
       .then(() => {
         toast.success(starred ? 'Added to saved' : 'Removed from saved')
+        invalidateCache()
       })
       .catch(err => {
         console.error('Error updating starred status:', err)
@@ -179,7 +208,7 @@ function App() {
         // On error, refresh to get correct state
         fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
       })
-  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData])
+  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData, invalidateCache])
 
   const handleDeleteCv = useCallback((id) => {
     // Don't update parent state - let Maintable handle it locally
@@ -187,6 +216,7 @@ function App() {
     axiosInstance.delete(`/api/cv/${id}`)
       .then(() => {
         toast.success('CV deleted')
+        invalidateCache()
       })
       .catch(err => {
         console.error('Error deleting CV:', err)
@@ -194,7 +224,7 @@ function App() {
         // On error, refresh to get correct state
         fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
       })
-  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData])
+  }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData, invalidateCache])
 
   const handlePageChange = useCallback((page) => {
     setCurrentPage(page)
