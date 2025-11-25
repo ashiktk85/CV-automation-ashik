@@ -32,7 +32,7 @@ const Login = () => {
       }
     } catch (err) {
       const errorMessage = err.response?.data?.message || 'Login failed. Please try again.';
-      setError(errorMessage); 
+      setError(errorMessage);
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -75,32 +75,41 @@ const Login = () => {
                   name="email"
                   type="text"
                   required
-                  placeholder=" "                   
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder=" "
                   className="
-                    peer block w-full px-3 py-3
-                    border-0 border-b border-gray-300
-                    focus:border-blue-500
-                    focus:outline-none
-                    transition text-2xl
-            "
+      peer block w-full px-3 py-3
+      border-0 border-b border-gray-300
+      focus:border-blue-500
+      focus:outline-none
+      transition text-2xl bg-transparent
+    "
                 />
+
                 <label
                   htmlFor="email"
                   className="
-              absolute left-3 top-1/2 -translate-y-1/2 mb-5
-              text-gray-500 text-lg
-              pointer-events-none
-              transition-all duration-200
-              peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-lg
-              peer-focus:top-1 peer-focus:text-sm
-              peer-not-placeholder-shown:top-1 peer-not-placeholder-shown:text-lg
-            "
+      absolute left-3 top-3 text-gray-500 text-xl
+      transition-all duration-200 pointer-events-none
+
+      /* When input is empty */
+      peer-placeholder-shown:top-3
+      peer-placeholder-shown:text-xl
+
+      /* When input has value */
+      peer-[&:not(:placeholder-shown)]:-top-2
+      peer-[&:not(:placeholder-shown)]:text-sm
+
+      /* When focused */
+      peer-focus:-top-2
+      peer-focus:text-sm
+    "
                 >
                   Email
                 </label>
               </div>
+
 
               <div className="relative mb-10">
                 <input
@@ -108,34 +117,38 @@ const Login = () => {
                   name="password"
                   type="password"
                   required
-                  placeholder=" "
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder=" "
                   className="
-                    peer block w-full px-3 py-3
-                    border-0 border-b border-gray-300
-                    focus:border-blue-500
-                    focus:outline-none
-                    transition
-                    text-2xl
-                  "
+      peer block w-full px-3 py-3
+      border-0 border-b border-gray-300
+      focus:border-blue-500
+      focus:outline-none
+      transition text-2xl bg-transparent
+    "
                 />
+
                 <label
                   htmlFor="password"
                   className="
-              absolute left-3 top-1/2 -translate-y-1/2 mb-5
-              text-gray-500 text-2xl
-              pointer-events-none
-              transition-all duration-200
-              peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-lg
-              peer-focus:top-1 peer-focus:text-sm
-              peer-not-placeholder-shown:top-1 peer-not-placeholder-shown:text-lg
-              
-            "
+      absolute left-3 top-3 text-gray-500 text-xl
+      transition-all duration-200 pointer-events-none
+
+      peer-placeholder-shown:top-3
+      peer-placeholder-shown:text-xl
+
+      peer-[&:not(:placeholder-shown)]:-top-2
+      peer-[&:not(:placeholder-shown)]:text-sm
+
+      peer-focus:-top-2
+      peer-focus:text-sm
+    "
                 >
                   Password
                 </label>
               </div>
+
             </div>
 
             <button
@@ -152,10 +165,10 @@ const Login = () => {
             </button>
           </form>
         </div>
-      </div>
+      </div >
 
 
-    </div>
+    </div >
   );
 };
 

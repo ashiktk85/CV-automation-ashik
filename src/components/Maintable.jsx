@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, memo } from "react"
+import { useState, useEffect, memo, useRef } from "react"
 import { motion } from "framer-motion"
 import { Mail, Phone, FileText, Trash2, Star } from "lucide-react"
 import { FaDownload } from "react-icons/fa6";
@@ -62,9 +62,40 @@ const Maintable = memo(function Maintable({
     cvData.map(mapCvToApplicant)
   )
 
-  // 👉 Sync local state when cvData changes (e.g. initial load / hard refresh)
+  // Track if we're doing a local update to prevent sync
+  const isLocalUpdateRef = useRef(false)
+  const prevCvDataLengthRef = useRef(cvData.length)
+  const prevCvDataIdsRef = useRef(new Set(cvData.map(cv => cv._id || cv.id)))
+
+  // 👉 Sync local state only when cvData has structural changes (new items, removed items, or initial load)
+  // NOT when it's just a single item property update (starred status, etc.)
   useEffect(() => {
-    setApplicants(cvData.map(mapCvToApplicant))
+    // Skip sync if we just did a local update
+    if (isLocalUpdateRef.current) {
+      isLocalUpdateRef.current = false
+      prevCvDataLengthRef.current = cvData.length
+      prevCvDataIdsRef.current = new Set(cvData.map(cv => cv._id || cv.id))
+      return
+    }
+
+    const currentIds = new Set(cvData.map(cv => cv._id || cv.id))
+    const prevIds = prevCvDataIdsRef.current
+    
+    // Only sync if there's a structural change:
+    // - Different length (items added/removed)
+    // - Different IDs (items added/removed)
+    const hasStructuralChange = 
+      prevCvDataLengthRef.current !== cvData.length ||
+      prevIds.size !== currentIds.size ||
+      [...prevIds].some(id => !currentIds.has(id)) ||
+      [...currentIds].some(id => !prevIds.has(id))
+
+    if (hasStructuralChange) {
+      setApplicants(cvData.map(mapCvToApplicant))
+      prevCvDataLengthRef.current = cvData.length
+      prevCvDataIdsRef.current = currentIds
+    }
+    // If no structural change, don't sync - local state is already correct
   }, [cvData])
 
   const handleEmailClick = (email) => {
@@ -157,6 +188,7 @@ Team Avoria`
 
   // 👉 LOCAL UPDATE: star toggle only changes that row in state
   const handleStarClick = (id) => {
+    isLocalUpdateRef.current = true // Mark as local update to prevent sync
     setApplicants((prev) =>
       prev.map((a) =>
         a.id === id ? { ...a, starred: !a.starred } : a
@@ -174,6 +206,7 @@ Team Avoria`
 
   const handleConfirmDelete = () => {
     if (deleteTarget) {
+      isLocalUpdateRef.current = true // Mark as local update to prevent sync
       // 👉 LOCAL UPDATE: remove that row only
       setApplicants((prev) =>
         prev.filter((a) => a.id !== deleteTarget.id)

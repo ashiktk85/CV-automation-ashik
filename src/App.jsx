@@ -167,18 +167,8 @@ function App() {
   }, [activeView, fetchCVData])
 
   const handleToggleStar = useCallback((id, starred) => {
-    // Optimistically update local state immediately (no loading, no fetch)
-    setCvData(prevData => 
-      prevData.map(cv => {
-        const cvId = cv._id || cv.id
-        if (cvId === id) {
-          return { ...cv, starred }
-        }
-        return cv
-      })
-    )
-
-    // Update on backend silently (don't show loading state)
+    // Don't update parent state - let Maintable handle it locally
+    // Just make the API call
     axiosInstance.patch(`/api/cv/${id}/starred`, { starred })
       .then(() => {
         toast.success(starred ? 'Added to saved' : 'Removed from saved')
@@ -186,19 +176,14 @@ function App() {
       .catch(err => {
         console.error('Error updating starred status:', err)
         toast.error('Failed to update saved status')
-        // Revert on error - refresh from backend
+        // On error, refresh to get correct state
         fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
       })
   }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData])
 
   const handleDeleteCv = useCallback((id) => {
-    // Optimistically remove from local state immediately (no loading, no fetch)
-    setCvData(prevData => prevData.filter(cv => {
-      const cvId = cv._id || cv.id
-      return cvId !== id
-    }))
-
-    // Delete on backend silently (don't show loading state)
+    // Don't update parent state - let Maintable handle it locally
+    // Just make the API call
     axiosInstance.delete(`/api/cv/${id}`)
       .then(() => {
         toast.success('CV deleted')
@@ -206,7 +191,7 @@ function App() {
       .catch(err => {
         console.error('Error deleting CV:', err)
         toast.error('Failed to delete CV')
-        // Revert on error - refresh from backend
+        // On error, refresh to get correct state
         fetchCVData(activeView, searchQuery, minScore, sortBy, sortOrder, currentPage)
       })
   }, [activeView, searchQuery, minScore, sortBy, sortOrder, currentPage, fetchCVData])
