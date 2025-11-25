@@ -4,7 +4,7 @@ const baseURL = 'https://cv-automation-backend-ifrv.onrender.com'
 const localBaseURL = 'http://localhost:3001'
 
 const axiosInstance = axios.create({
-  baseURL: baseURL,
+  baseURL: localBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },

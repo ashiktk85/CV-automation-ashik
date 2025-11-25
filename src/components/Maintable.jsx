@@ -239,7 +239,7 @@ const Maintable = memo(function Maintable({
 //     )
 
     window.open(
-      `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}&body=${body}`,
+      `https://mail.google.com/mail/?view=cm&fs=1&to=${email}`,
       "_blank"
     )
   }
